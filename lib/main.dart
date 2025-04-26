@@ -13,7 +13,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'BLE IMU Line Chart',
+      title: 'BLE IMU Charts',
       theme: ThemeData(primarySwatch: Colors.blue),
       home: const BleScannerScreen(),
     );
@@ -135,7 +135,7 @@ class _BleScannerScreenState extends State<BleScannerScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('BLE IMU Line Chart')),
+      appBar: AppBar(title: const Text('BLE IMU Charts')),
       body:
           connectedDevice == null
               ? ListView.builder(
@@ -159,10 +159,17 @@ class _BleScannerScreenState extends State<BleScannerScreen> {
               : SingleChildScrollView(
                 child: Column(
                   children: [
+                    const SizedBox(height: 10),
+                    const Text(
+                      'Acceleration (m/s²)',
+                      style: TextStyle(fontSize: 18),
+                    ),
                     SizedBox(
-                      height: 300,
+                      height: 250,
                       child: LineChart(
                         LineChartData(
+                          minY: -50,
+                          maxY: 50,
                           lineBarsData: [
                             LineChartBarData(
                               spots: axData,
@@ -182,6 +189,32 @@ class _BleScannerScreenState extends State<BleScannerScreen> {
                               dotData: FlDotData(show: false),
                               color: Colors.blue,
                             ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    Wrap(
+                      alignment: WrapAlignment.center,
+                      spacing: 10,
+                      children: [
+                        buildLegend('Ax', Colors.red),
+                        buildLegend('Ay', Colors.green),
+                        buildLegend('Az', Colors.blue),
+                      ],
+                    ),
+                    const SizedBox(height: 30),
+                    const Text(
+                      'Gyroscope (deg/s)',
+                      style: TextStyle(fontSize: 18),
+                    ),
+                    SizedBox(
+                      height: 250,
+                      child: LineChart(
+                        LineChartData(
+                          minY: -2000,
+                          maxY: 2000,
+                          lineBarsData: [
                             LineChartBarData(
                               spots: gxData,
                               isCurved: true,
@@ -204,14 +237,11 @@ class _BleScannerScreenState extends State<BleScannerScreen> {
                         ),
                       ),
                     ),
-                    const SizedBox(height: 20),
+                    const SizedBox(height: 10),
                     Wrap(
                       alignment: WrapAlignment.center,
                       spacing: 10,
                       children: [
-                        buildLegend('Ax', Colors.red),
-                        buildLegend('Ay', Colors.green),
-                        buildLegend('Az', Colors.blue),
                         buildLegend('Gx', Colors.orange),
                         buildLegend('Gy', Colors.purple),
                         buildLegend('Gz', Colors.cyan),
