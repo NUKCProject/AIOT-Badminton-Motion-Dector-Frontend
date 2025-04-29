@@ -59,6 +59,8 @@ class _BleScannerScreenState extends State<BleScannerScreen> {
   List<FlSpot> gxData = [];
   List<FlSpot> gyData = [];
   List<FlSpot> gzData = [];
+  List<FlSpot> micLevelData = [];
+  List<FlSpot> micPeakData = [];
 
   int counter = 0;
   final int maxPoints = 50;
@@ -86,7 +88,7 @@ class _BleScannerScreenState extends State<BleScannerScreen> {
     setState(() {
       connectedDevice = device;
     });
-    monitorConnection(device); // <<=== 加上監聽斷線
+    monitorConnection(device);
     discoverServices(device);
   }
 
@@ -100,7 +102,7 @@ class _BleScannerScreenState extends State<BleScannerScreen> {
           isRecording = false;
           recordedData.clear();
         });
-        startScan(); // 斷線後自動重新掃描
+        startScan();
       }
     });
   }
@@ -131,13 +133,15 @@ class _BleScannerScreenState extends State<BleScannerScreen> {
         final byteData = ByteData.sublistView(Uint8List.fromList(value));
 
         int timestamp = byteData.getInt64(0, Endian.little);
-        int eqpId = byteData.getUint16(8, Endian.little); // 2 bytes
+        int eqpId = byteData.getUint16(8, Endian.little);
         double ax = byteData.getFloat32(10, Endian.little);
         double ay = byteData.getFloat32(14, Endian.little);
         double az = byteData.getFloat32(18, Endian.little);
         double gx = byteData.getFloat32(22, Endian.little);
         double gy = byteData.getFloat32(26, Endian.little);
         double gz = byteData.getFloat32(30, Endian.little);
+        int micLevel = byteData.getUint16(34, Endian.little);
+        int micPeak = byteData.getUint16(36, Endian.little);
 
         setState(() {
           deviceId = eqpId;
@@ -148,6 +152,8 @@ class _BleScannerScreenState extends State<BleScannerScreen> {
           addData(gxData, counter.toDouble(), gx);
           addData(gyData, counter.toDouble(), gy);
           addData(gzData, counter.toDouble(), gz);
+          addData(micLevelData, counter.toDouble(), micLevel.toDouble());
+          addData(micPeakData, counter.toDouble(), micPeak.toDouble());
         });
 
         if (isRecording) {
@@ -159,9 +165,11 @@ class _BleScannerScreenState extends State<BleScannerScreen> {
             "gx": gx,
             "gy": gy,
             "gz": gz,
+            "mic_level": micLevel,
+            "mic_peak": micPeak,
           });
 
-          if (recordedData.length >= batchSize) {
+          if (batchSize > 0 && recordedData.length >= batchSize) {
             sendRecordedData();
           }
         }
@@ -179,18 +187,18 @@ class _BleScannerScreenState extends State<BleScannerScreen> {
   Future<void> sendRecordedData() async {
     if (recordedData.isEmpty) return;
 
-    List<Map<String, dynamic>> dataToSend = List.from(recordedData); // 先copy
-    recordedData.clear(); // 立刻清空！
+    List<Map<String, dynamic>> dataToSend = List.from(recordedData);
+    recordedData.clear();
 
     String url =
         selectedMode == 'Reference'
-            ? 'https://badminton-457613.de.r.appspot.com/record-raw-data'
-            : 'https://badminton-457613.de.r.appspot.com/record-training-data';
+            ? 'https://badminton-457613.de.r.appspot.com/record-reference-raw-data'
+            : 'https://badminton-457613.de.r.appspot.com/record-training-raw-data';
 
     final body = jsonEncode({
       "device_id": deviceId.toRadixString(16).toUpperCase(),
       "action": selectedAction,
-      "waveform": dataToSend, // 傳copy出來的data
+      "waveform": dataToSend,
     });
 
     try {
@@ -228,13 +236,24 @@ class _BleScannerScreenState extends State<BleScannerScreen> {
     });
   }
 
+  Widget buildLegend(String label, Color color) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(width: 10, height: 10, color: color),
+        const SizedBox(width: 4),
+        Text(label),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: Text(
           'BLE IMU Recorder (ID: ${deviceId.toRadixString(16).toUpperCase()})',
-        ), // <<=== 拔掉0x
+        ),
       ),
       body:
           connectedDevice == null
@@ -367,6 +386,43 @@ class _BleScannerScreenState extends State<BleScannerScreen> {
                           ],
                         ),
                       ),
+                    ),
+                    const SizedBox(height: 10),
+                    const Text(
+                      'Mic Level/Peak',
+                      style: TextStyle(fontSize: 18),
+                    ),
+                    SizedBox(
+                      height: 250,
+                      child: LineChart(
+                        LineChartData(
+                          minY: 0,
+                          maxY: 5000,
+                          lineBarsData: [
+                            LineChartBarData(
+                              spots: micLevelData,
+                              isCurved: true,
+                              dotData: FlDotData(show: false),
+                              color: Colors.yellow,
+                            ),
+                            LineChartBarData(
+                              spots: micPeakData,
+                              isCurved: true,
+                              dotData: FlDotData(show: false),
+                              color: Colors.pink,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    Wrap(
+                      alignment: WrapAlignment.center,
+                      spacing: 10,
+                      children: [
+                        buildLegend('Level', Colors.yellow),
+                        buildLegend('Peak', Colors.pink),
+                      ],
                     ),
                   ],
                 ),
