@@ -192,8 +192,8 @@ class _BleScannerScreenState extends State<BleScannerScreen> {
 
     String url =
         selectedMode == 'Reference'
-            ? 'https://badminton-457613.de.r.appspot.com/record-reference-raw-data'
-            : 'https://badminton-457613.de.r.appspot.com/record-training-raw-data';
+            ? 'https://badminton-457613.de.r.appspot.com/record-reference-raw-waveforms'
+            : 'https://badminton-457613.de.r.appspot.com/record-training-raw-waveforms';
 
     final body = jsonEncode({
       "device_id": deviceId.toRadixString(16).toUpperCase(),
