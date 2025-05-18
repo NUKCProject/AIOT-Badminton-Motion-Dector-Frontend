@@ -264,7 +264,7 @@ class _BleScannerScreenState extends State<BleScannerScreen> {
       );
 
       // 顯示 response 資訊在 UI 上
-      showResponseDialog(response.statusCode, response.body);
+      //showResponseDialog(response.statusCode, response.body);
 
       if (response.statusCode == 200) {
         showSnackbar('成功上傳${dataToSend.length}筆資料', true);
@@ -561,8 +561,8 @@ class _BleScannerScreenState extends State<BleScannerScreen> {
 
   // New real-time data view with recording controls
 Widget _buildRealTimeDataView() {
-  final dateFormatter = DateFormat('yyyy/MM/dd HH:mm:ss.SSS');
-  final taiwanTime = lastTimestamp?.add(const Duration(hours: 8)); // Convert to Taiwan time (UTC+8)
+  // final dateFormatter = DateFormat('yyyy/MM/dd HH:mm:ss.SSS');
+  // final taiwanTime = lastTimestamp?.add(const Duration(hours: 8)); // Convert to Taiwan time (UTC+8)
   
   return RefreshIndicator(
     onRefresh: () async {
@@ -614,16 +614,16 @@ Widget _buildRealTimeDataView() {
                     ],
                   ),
                   const SizedBox(height: 12),
-                  Text(
-                    taiwanTime != null 
-                        ? '${dateFormatter.format(taiwanTime)} TWN'
-                        : 'No data received',
-                    style: const TextStyle(
-                      fontSize: 16,
-                      color: Colors.white70,
-                      fontFamily: 'Courier',
-                    ),
-                  ),
+                  // Text(
+                  //   taiwanTime != null 
+                  //       ? '${dateFormatter.format(taiwanTime)} TWN'
+                  //       : 'No data received',
+                  //   style: const TextStyle(
+                  //     fontSize: 16,
+                  //     color: Colors.white70,
+                  //     fontFamily: 'Courier',
+                  //   ),
+                  // ),
                 ],
               ),
             ),
@@ -873,17 +873,17 @@ Widget _buildRealTimeDataView() {
           const SizedBox(height: 20),
 
           // Device Info Card
-          _buildDataCard(
-            icon: Icons.memory,
-            title: 'Device Information',
-            iconColor: Colors.orange,
-            child: _buildInfoItem(
-              'Device ID',
-              currentDeviceId.isNotEmpty ? currentDeviceId : 'No data',
-              Icons.fingerprint,
-            ),
-          ),
-          const SizedBox(height: 16),
+          // _buildDataCard(
+          //   icon: Icons.memory,
+          //   title: 'Device Information',
+          //   iconColor: Colors.orange,
+          //   child: _buildInfoItem(
+          //     'Device ID',
+          //     currentDeviceId.isNotEmpty ? currentDeviceId : 'No data',
+          //     Icons.fingerprint,
+          //   ),
+          // ),
+          // const SizedBox(height: 16),
 
           // Acceleration Card
           _buildDataCard(
