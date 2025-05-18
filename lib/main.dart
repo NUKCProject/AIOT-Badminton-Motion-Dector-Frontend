@@ -559,228 +559,471 @@ class _BleScannerScreenState extends State<BleScannerScreen> {
     );
   }
 
-  // New real-time data view
-  Widget _buildRealTimeDataView() {
-    final dateFormatter = DateFormat('yyyy/MM/dd HH:mm:ss.SSS');
-    final taiwanTime = lastTimestamp?.add(const Duration(hours: 8)); // Convert to Taiwan time (UTC+8)
-    
-    return RefreshIndicator(
-      onRefresh: () async {
-        // Force a refresh by triggering setState
-        setState(() {});
-      },
-      child: SingleChildScrollView(
-        physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Header Card
-            Card(
-              elevation: 6,
-              shape: RoundedRectangleBorder(
+  // New real-time data view with recording controls
+Widget _buildRealTimeDataView() {
+  final dateFormatter = DateFormat('yyyy/MM/dd HH:mm:ss.SSS');
+  final taiwanTime = lastTimestamp?.add(const Duration(hours: 8)); // Convert to Taiwan time (UTC+8)
+  
+  return RefreshIndicator(
+    onRefresh: () async {
+      // Force a refresh by triggering setState
+      setState(() {});
+    },
+    child: SingleChildScrollView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header Card
+          Card(
+            elevation: 6,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(16),
-              ),
-              child: Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(16),
-                  gradient: const LinearGradient(
-                    colors: [Color(0xFF00BCD4), Color(0xFF0097A7)],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
+                gradient: const LinearGradient(
+                  colors: [Color(0xFF00BCD4), Color(0xFF0097A7)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
                 ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Row(
-                      children: [
-                        Icon(
-                          Icons.sensors,
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Row(
+                    children: [
+                      Icon(
+                        Icons.sensors,
+                        color: Colors.white,
+                        size: 28,
+                      ),
+                      SizedBox(width: 12),
+                      Text(
+                        'Real-time IMU Data',
+                        style: TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
                           color: Colors.white,
-                          size: 28,
                         ),
-                        SizedBox(width: 12),
-                        Text(
-                          'Real-time IMU Data',
-                          style: TextStyle(
-                            fontSize: 24,
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    taiwanTime != null 
+                        ? '${dateFormatter.format(taiwanTime)} TWN'
+                        : 'No data received',
+                    style: const TextStyle(
+                      fontSize: 16,
+                      color: Colors.white70,
+                      fontFamily: 'Courier',
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 20),
+
+          // Recording Controls Card
+          Card(
+            elevation: 4,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: isRecording 
+                              ? Colors.red.withOpacity(0.1)
+                              : Colors.blue.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Icon(
+                          isRecording ? Icons.stop : Icons.fiber_manual_record,
+                          color: isRecording ? Colors.red : Colors.blue,
+                          size: 24,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Text(
+                        isRecording ? 'Recording in Progress' : 'Recording Controls',
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: isRecording ? Colors.red : const Color(0xFF333333),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+                  
+                  // Recording Mode Dropdown
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                    decoration: BoxDecoration(
+                      border: Border.all(color: Colors.grey.shade300),
+                      borderRadius: BorderRadius.circular(12),
+                      color: Colors.white,
+                    ),
+                    child: DropdownButtonHideUnderline(
+                      child: DropdownButton<String>(
+                        value: selectedMode,
+                        isExpanded: true,
+                        hint: const Text('Select Recording Mode'),
+                        icon: const Icon(Icons.arrow_drop_down),
+                        items: recordingModes.map((String mode) {
+                          return DropdownMenuItem<String>(
+                            value: mode,
+                            child: Row(
+                              children: [
+                                Icon(
+                                  mode == 'Reference' ? Icons.bookmark : Icons.school,
+                                  color: mode == 'Reference' ? Colors.orange : Colors.green,
+                                  size: 20,
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  mode,
+                                  style: const TextStyle(fontSize: 16),
+                                ),
+                              ],
+                            ),
+                          );
+                        }).toList(),
+                        onChanged: isRecording ? null : (String? newValue) {
+                          setState(() {
+                            selectedMode = newValue!;
+                          });
+                        },
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  
+                  // Action Dropdown
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                    decoration: BoxDecoration(
+                      border: Border.all(color: Colors.grey.shade300),
+                      borderRadius: BorderRadius.circular(12),
+                      color: Colors.white,
+                    ),
+                    child: DropdownButtonHideUnderline(
+                      child: DropdownButton<String>(
+                        value: selectedAction,
+                        isExpanded: true,
+                        hint: const Text('Select Action Type'),
+                        icon: const Icon(Icons.arrow_drop_down),
+                        items: actions.map((String action) {
+                          IconData actionIcon;
+                          Color actionColor;
+                          
+                          switch (action) {
+                            case 'smash':
+                              actionIcon = Icons.sports_tennis;
+                              actionColor = Colors.red;
+                              break;
+                            case 'drive':
+                              actionIcon = Icons.arrow_forward;
+                              actionColor = Colors.blue;
+                              break;
+                            case 'clear':
+                              actionIcon = Icons.arrow_upward;
+                              actionColor = Colors.green;
+                              break;
+                            case 'drop':
+                              actionIcon = Icons.arrow_downward;
+                              actionColor = Colors.orange;
+                              break;
+                            case 'toss':
+                              actionIcon = Icons.pan_tool;
+                              actionColor = Colors.purple;
+                              break;
+                            default:
+                              actionIcon = Icons.help_outline;
+                              actionColor = Colors.grey;
+                          }
+                          
+                          return DropdownMenuItem<String>(
+                            value: action,
+                            child: Row(
+                              children: [
+                                Icon(
+                                  actionIcon,
+                                  color: actionColor,
+                                  size: 20,
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  action.toUpperCase(),
+                                  style: const TextStyle(fontSize: 16),
+                                ),
+                              ],
+                            ),
+                          );
+                        }).toList(),
+                        onChanged: isRecording ? null : (String? newValue) {
+                          setState(() {
+                            selectedAction = newValue!;
+                          });
+                        },
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  
+                  // Recording Status and Button
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Status',
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: Colors.grey.shade600,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Row(
+                              children: [
+                                Container(
+                                  width: 12,
+                                  height: 12,
+                                  decoration: BoxDecoration(
+                                    color: isRecording ? Colors.red : Colors.grey,
+                                    shape: BoxShape.circle,
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  isRecording ? 'Recording...' : 'Ready',
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                    color: isRecording ? Colors.red : Colors.grey,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            if (isRecording) ...[
+                              const SizedBox(height: 8),
+                              Text(
+                                'Samples: ${recordedData.length}',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  color: Colors.grey.shade600,
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      ElevatedButton.icon(
+                        onPressed: connectedDevice != null ? toggleRecording : null,
+                        icon: Icon(
+                          isRecording ? Icons.stop : Icons.fiber_manual_record,
+                          size: 20,
+                        ),
+                        label: Text(
+                          isRecording ? 'Stop Recording' : 'Start Recording',
+                          style: const TextStyle(
+                            fontSize: 16,
                             fontWeight: FontWeight.bold,
-                            color: Colors.white,
                           ),
                         ),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    Text(
-                      taiwanTime != null 
-                          ? '${dateFormatter.format(taiwanTime)} TWN'
-                          : 'No data received',
-                      style: const TextStyle(
-                        fontSize: 16,
-                        color: Colors.white70,
-                        fontFamily: 'Courier',
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: isRecording ? Colors.red : const Color(0xFF00BCD4),
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 24,
+                            vertical: 12,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(25),
+                          ),
+                          elevation: 4,
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 20),
+
+          // Device Info Card
+          _buildDataCard(
+            icon: Icons.memory,
+            title: 'Device Information',
+            iconColor: Colors.orange,
+            child: _buildInfoItem(
+              'Device ID',
+              currentDeviceId.isNotEmpty ? currentDeviceId : 'No data',
+              Icons.fingerprint,
+            ),
+          ),
+          const SizedBox(height: 16),
+
+          // Acceleration Card
+          _buildDataCard(
+            icon: Icons.speed,
+            title: 'Acceleration (g)',
+            iconColor: Colors.blue,
+            child: Column(
+              children: [
+                _buildSensorDataRow(
+                  'X-axis (forward)',
+                  currentAccelX,
+                  'g',
+                  Colors.red,
+                  Icons.arrow_forward,
                 ),
-              ),
-            ),
-            const SizedBox(height: 20),
-
-            // Device Info Card
-            _buildDataCard(
-              icon: Icons.memory,
-              title: 'Device Information',
-              iconColor: Colors.orange,
-              child: _buildInfoItem(
-                'Device ID',
-                currentDeviceId.isNotEmpty ? currentDeviceId : 'No data',
-                Icons.fingerprint,
-              ),
-            ),
-            const SizedBox(height: 16),
-
-            // Acceleration Card
-            _buildDataCard(
-              icon: Icons.speed,
-              title: 'Acceleration (g)',
-              iconColor: Colors.blue,
-              child: Column(
-                children: [
-                  _buildSensorDataRow(
-                    'X-axis (forward)',
-                    currentAccelX,
-                    'g',
-                    Colors.red,
-                    Icons.arrow_forward,
-                  ),
-                  const Divider(height: 20),
-                  _buildSensorDataRow(
-                    'Y-axis (sideways)',
-                    currentAccelY,
-                    'g',
-                    Colors.green,
-                    Icons.swap_horiz,
-                  ),
-                  const Divider(height: 20),
-                  _buildSensorDataRow(
-                    'Z-axis (upward)',
-                    currentAccelZ,
-                    'g',
-                    Colors.blue,
-                    Icons.arrow_upward,
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 16),
-
-            // Gyroscope Card
-            _buildDataCard(
-              icon: Icons.rotate_right,
-              title: 'Gyroscope (dps)',
-              iconColor: Colors.purple,
-              child: Column(
-                children: [
-                  _buildSensorDataRow(
-                    'X-axis rotation',
-                    currentGyroX,
-                    'dps',
-                    Colors.orange,
-                    Icons.rotate_left,
-                  ),
-                  const Divider(height: 20),
-                  _buildSensorDataRow(
-                    'Y-axis rotation',
-                    currentGyroY,
-                    'dps',
-                    Colors.purple,
-                    Icons.rotate_right,
-                  ),
-                  const Divider(height: 20),
-                  _buildSensorDataRow(
-                    'Z-axis rotation',
-                    currentGyroZ,
-                    'dps',
-                    Colors.cyan,
-                    Icons.sync,
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 16),
-
-            // Microphone Card
-            _buildDataCard(
-              icon: Icons.mic,
-              title: 'Microphone',
-              iconColor: Colors.green,
-              child: Column(
-                children: [
-                  _buildSensorDataRow(
-                    'Level',
-                    currentMicLevel.toDouble(),
-                    '',
-                    Colors.teal,
-                    Icons.graphic_eq,
-                  ),
-                  const Divider(height: 20),
-                  _buildSensorDataRow(
-                    'Peak',
-                    currentMicPeak.toDouble(),
-                    '',
-                    Colors.amber,
-                    Icons.timeline,
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 32),
-
-            // Status indicator
-            Center(
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                decoration: BoxDecoration(
-                  color: lastTimestamp != null ? Colors.green : Colors.grey,
-                  borderRadius: BorderRadius.circular(25),
-                  boxShadow: [
-                    BoxShadow(
-                      color: (lastTimestamp != null ? Colors.green : Colors.grey).withOpacity(0.3),
-                      blurRadius: 8,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
+                const Divider(height: 20),
+                _buildSensorDataRow(
+                  'Y-axis (sideways)',
+                  currentAccelY,
+                  'g',
+                  Colors.green,
+                  Icons.swap_horiz,
                 ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      lastTimestamp != null ? Icons.check_circle : Icons.error,
+                const Divider(height: 20),
+                _buildSensorDataRow(
+                  'Z-axis (upward)',
+                  currentAccelZ,
+                  'g',
+                  Colors.blue,
+                  Icons.arrow_upward,
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+
+          // Gyroscope Card
+          _buildDataCard(
+            icon: Icons.rotate_right,
+            title: 'Gyroscope (dps)',
+            iconColor: Colors.purple,
+            child: Column(
+              children: [
+                _buildSensorDataRow(
+                  'X-axis rotation',
+                  currentGyroX,
+                  'dps',
+                  Colors.orange,
+                  Icons.rotate_left,
+                ),
+                const Divider(height: 20),
+                _buildSensorDataRow(
+                  'Y-axis rotation',
+                  currentGyroY,
+                  'dps',
+                  Colors.purple,
+                  Icons.rotate_right,
+                ),
+                const Divider(height: 20),
+                _buildSensorDataRow(
+                  'Z-axis rotation',
+                  currentGyroZ,
+                  'dps',
+                  Colors.cyan,
+                  Icons.sync,
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+
+          // Microphone Card
+          _buildDataCard(
+            icon: Icons.mic,
+            title: 'Microphone',
+            iconColor: Colors.green,
+            child: Column(
+              children: [
+                _buildSensorDataRow(
+                  'Level',
+                  currentMicLevel.toDouble(),
+                  '',
+                  Colors.teal,
+                  Icons.graphic_eq,
+                ),
+                const Divider(height: 20),
+                _buildSensorDataRow(
+                  'Peak',
+                  currentMicPeak.toDouble(),
+                  '',
+                  Colors.amber,
+                  Icons.timeline,
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 32),
+
+          // Status indicator
+          Center(
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+              decoration: BoxDecoration(
+                color: lastTimestamp != null ? Colors.green : Colors.grey,
+                borderRadius: BorderRadius.circular(25),
+                boxShadow: [
+                  BoxShadow(
+                    color: (lastTimestamp != null ? Colors.green : Colors.grey).withOpacity(0.3),
+                    blurRadius: 8,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    lastTimestamp != null ? Icons.check_circle : Icons.error,
+                    color: Colors.white,
+                    size: 20,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    lastTimestamp != null ? 'Data Streaming' : 'No Data',
+                    style: const TextStyle(
                       color: Colors.white,
-                      size: 20,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
                     ),
-                    const SizedBox(width: 8),
-                    Text(
-                      lastTimestamp != null ? 'Data Streaming' : 'No Data',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
-                      ),
-                    ),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
-    );
-  }
+    ),
+  );
+}
+  
 
   Widget _buildDataCard({
     required IconData icon,
