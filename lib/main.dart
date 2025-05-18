@@ -4,6 +4,7 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:http/http.dart' as http;
 import 'dart:typed_data';
 import 'dart:convert';
+import 'package:intl/intl.dart';
 
 void main() {
   runApp(const MyApp());
@@ -75,6 +76,18 @@ class _BleScannerScreenState extends State<BleScannerScreen> {
 
   // Current page index for the bottom navigation
   int _currentIndex = 0;
+
+  // Real-time data variables
+  DateTime? lastTimestamp;
+  String currentDeviceId = "";
+  double currentAccelX = 0.0;
+  double currentAccelY = 0.0;
+  double currentAccelZ = 0.0;
+  double currentGyroX = 0.0;
+  double currentGyroY = 0.0;
+  double currentGyroZ = 0.0;
+  int currentMicLevel = 0;
+  int currentMicPeak = 0;
 
   @override
   void initState() {
@@ -172,6 +185,19 @@ class _BleScannerScreenState extends State<BleScannerScreen> {
 
         setState(() {
           deviceId = eqpId;
+          
+          // Update real-time data
+          lastTimestamp = DateTime.fromMillisecondsSinceEpoch(timestamp);
+          currentDeviceId = "${(eqpId >> 8).toRadixString(16).padLeft(2, '0').toUpperCase()} ${(eqpId & 0xFF).toRadixString(16).padLeft(2, '0').toUpperCase()}";
+          currentAccelX = ax;
+          currentAccelY = ay;
+          currentAccelZ = az;
+          currentGyroX = gx;
+          currentGyroY = gy;
+          currentGyroZ = gz;
+          currentMicLevel = micLevel;
+          currentMicPeak = micPeak;
+          
           counter++;
           addData(axData, counter.toDouble(), ax);
           addData(ayData, counter.toDouble(), ay);
@@ -371,7 +397,11 @@ class _BleScannerScreenState extends State<BleScannerScreen> {
               ? _buildScannerView()
               : IndexedStack(
                 index: _currentIndex,
-                children: [_buildRealTimeChartsView(), _buildDeviceInfoView()],
+                children: [
+                  _buildRealTimeDataView(), // New real-time data page
+                  _buildRealTimeChartsView(),
+                  _buildDeviceInfoView()
+                ],
               ),
       bottomNavigationBar:
           connectedDevice != null
@@ -379,10 +409,15 @@ class _BleScannerScreenState extends State<BleScannerScreen> {
                 currentIndex: _currentIndex,
                 onTap: _changePage,
                 selectedItemColor: const Color(0xFF00BCD4),
+                type: BottomNavigationBarType.fixed,
                 items: const [
                   BottomNavigationBarItem(
-                    icon: Icon(Icons.show_chart),
+                    icon: Icon(Icons.sensors),
                     label: 'Real-time Data',
+                  ),
+                  BottomNavigationBarItem(
+                    icon: Icon(Icons.show_chart),
+                    label: 'Charts',
                   ),
                   BottomNavigationBarItem(
                     icon: Icon(Icons.info_outline),
@@ -519,6 +554,375 @@ class _BleScannerScreenState extends State<BleScannerScreen> {
                       );
                     },
                   ),
+        ),
+      ],
+    );
+  }
+
+  // New real-time data view
+  Widget _buildRealTimeDataView() {
+    final dateFormatter = DateFormat('yyyy/MM/dd HH:mm:ss.SSS');
+    final taiwanTime = lastTimestamp?.add(const Duration(hours: 8)); // Convert to Taiwan time (UTC+8)
+    
+    return RefreshIndicator(
+      onRefresh: () async {
+        // Force a refresh by triggering setState
+        setState(() {});
+      },
+      child: SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Header Card
+            Card(
+              elevation: 6,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(16),
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF00BCD4), Color(0xFF0097A7)],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Row(
+                      children: [
+                        Icon(
+                          Icons.sensors,
+                          color: Colors.white,
+                          size: 28,
+                        ),
+                        SizedBox(width: 12),
+                        Text(
+                          'Real-time IMU Data',
+                          style: TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      taiwanTime != null 
+                          ? '${dateFormatter.format(taiwanTime)} TWN'
+                          : 'No data received',
+                      style: const TextStyle(
+                        fontSize: 16,
+                        color: Colors.white70,
+                        fontFamily: 'Courier',
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
+
+            // Device Info Card
+            _buildDataCard(
+              icon: Icons.memory,
+              title: 'Device Information',
+              iconColor: Colors.orange,
+              child: _buildInfoItem(
+                'Device ID',
+                currentDeviceId.isNotEmpty ? currentDeviceId : 'No data',
+                Icons.fingerprint,
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            // Acceleration Card
+            _buildDataCard(
+              icon: Icons.speed,
+              title: 'Acceleration (g)',
+              iconColor: Colors.blue,
+              child: Column(
+                children: [
+                  _buildSensorDataRow(
+                    'X-axis (forward)',
+                    currentAccelX,
+                    'g',
+                    Colors.red,
+                    Icons.arrow_forward,
+                  ),
+                  const Divider(height: 20),
+                  _buildSensorDataRow(
+                    'Y-axis (sideways)',
+                    currentAccelY,
+                    'g',
+                    Colors.green,
+                    Icons.swap_horiz,
+                  ),
+                  const Divider(height: 20),
+                  _buildSensorDataRow(
+                    'Z-axis (upward)',
+                    currentAccelZ,
+                    'g',
+                    Colors.blue,
+                    Icons.arrow_upward,
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            // Gyroscope Card
+            _buildDataCard(
+              icon: Icons.rotate_right,
+              title: 'Gyroscope (dps)',
+              iconColor: Colors.purple,
+              child: Column(
+                children: [
+                  _buildSensorDataRow(
+                    'X-axis rotation',
+                    currentGyroX,
+                    'dps',
+                    Colors.orange,
+                    Icons.rotate_left,
+                  ),
+                  const Divider(height: 20),
+                  _buildSensorDataRow(
+                    'Y-axis rotation',
+                    currentGyroY,
+                    'dps',
+                    Colors.purple,
+                    Icons.rotate_right,
+                  ),
+                  const Divider(height: 20),
+                  _buildSensorDataRow(
+                    'Z-axis rotation',
+                    currentGyroZ,
+                    'dps',
+                    Colors.cyan,
+                    Icons.sync,
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            // Microphone Card
+            _buildDataCard(
+              icon: Icons.mic,
+              title: 'Microphone',
+              iconColor: Colors.green,
+              child: Column(
+                children: [
+                  _buildSensorDataRow(
+                    'Level',
+                    currentMicLevel.toDouble(),
+                    '',
+                    Colors.teal,
+                    Icons.graphic_eq,
+                  ),
+                  const Divider(height: 20),
+                  _buildSensorDataRow(
+                    'Peak',
+                    currentMicPeak.toDouble(),
+                    '',
+                    Colors.amber,
+                    Icons.timeline,
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 32),
+
+            // Status indicator
+            Center(
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                decoration: BoxDecoration(
+                  color: lastTimestamp != null ? Colors.green : Colors.grey,
+                  borderRadius: BorderRadius.circular(25),
+                  boxShadow: [
+                    BoxShadow(
+                      color: (lastTimestamp != null ? Colors.green : Colors.grey).withOpacity(0.3),
+                      blurRadius: 8,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      lastTimestamp != null ? Icons.check_circle : Icons.error,
+                      color: Colors.white,
+                      size: 20,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      lastTimestamp != null ? 'Data Streaming' : 'No Data',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDataCard({
+    required IconData icon,
+    required String title,
+    required Color iconColor,
+    required Widget child,
+  }) {
+    return Card(
+      elevation: 4,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: iconColor.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(
+                    icon,
+                    color: iconColor,
+                    size: 24,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Text(
+                  title,
+                  style: const TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF333333),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 20),
+            child,
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSensorDataRow(
+    String label,
+    double value,
+    String unit,
+    Color color,
+    IconData icon,
+  ) {
+    return Row(
+      children: [
+        Icon(
+          icon,
+          color: color,
+          size: 20,
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label,
+                style: const TextStyle(
+                  fontSize: 14,
+                  color: Colors.grey,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                '${value.toStringAsFixed(3)}$unit',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: color,
+                  fontFamily: 'Courier',
+                ),
+              ),
+            ],
+          ),
+        ),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          decoration: BoxDecoration(
+            color: color.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: Text(
+            value.abs() > 10 ? 'HIGH' : value.abs() > 5 ? 'MED' : 'LOW',
+            style: TextStyle(
+              color: color,
+              fontWeight: FontWeight.bold,
+              fontSize: 12,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildInfoItem(String label, String value, IconData icon) {
+    return Row(
+      children: [
+        Icon(
+          icon,
+          color: Colors.orange,
+          size: 20,
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label,
+                style: const TextStyle(
+                  fontSize: 14,
+                  color: Colors.grey,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                value,
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF333333),
+                  fontFamily: 'Courier',
+                ),
+              ),
+            ],
+          ),
         ),
       ],
     );
