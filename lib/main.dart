@@ -185,10 +185,11 @@ class _BleScannerScreenState extends State<BleScannerScreen> {
 
         setState(() {
           deviceId = eqpId;
-          
+
           // Update real-time data
           lastTimestamp = DateTime.fromMillisecondsSinceEpoch(timestamp);
-          currentDeviceId = "${(eqpId >> 8).toRadixString(16).padLeft(2, '0').toUpperCase()} ${(eqpId & 0xFF).toRadixString(16).padLeft(2, '0').toUpperCase()}";
+          currentDeviceId =
+              "${(eqpId >> 8).toRadixString(16).padLeft(2, '0').toUpperCase()} ${(eqpId & 0xFF).toRadixString(16).padLeft(2, '0').toUpperCase()}";
           currentAccelX = ax;
           currentAccelY = ay;
           currentAccelZ = az;
@@ -197,7 +198,7 @@ class _BleScannerScreenState extends State<BleScannerScreen> {
           currentGyroZ = gz;
           currentMicLevel = micLevel;
           currentMicPeak = micPeak;
-          
+
           counter++;
           addData(axData, counter.toDouble(), ax);
           addData(ayData, counter.toDouble(), ay);
@@ -242,7 +243,7 @@ class _BleScannerScreenState extends State<BleScannerScreen> {
 
     List<Map<String, dynamic>> dataToSend = List.from(recordedData); // 先copy
     recordedData.clear(); // 立刻清空！
-    
+
     String url =
         selectedMode == 'Reference'
             ? 'https://badminton-457613.de.r.appspot.com/record-reference-raw-waveforms'
@@ -400,7 +401,7 @@ class _BleScannerScreenState extends State<BleScannerScreen> {
                 children: [
                   _buildRealTimeDataView(), // New real-time data page
                   _buildRealTimeChartsView(),
-                  _buildDeviceInfoView()
+                  _buildDeviceInfoView(),
                 ],
               ),
       bottomNavigationBar:
@@ -560,470 +561,510 @@ class _BleScannerScreenState extends State<BleScannerScreen> {
   }
 
   // New real-time data view with recording controls
-Widget _buildRealTimeDataView() {
-  // final dateFormatter = DateFormat('yyyy/MM/dd HH:mm:ss.SSS');
-  // final taiwanTime = lastTimestamp?.add(const Duration(hours: 8)); // Convert to Taiwan time (UTC+8)
-  
-  return RefreshIndicator(
-    onRefresh: () async {
-      // Force a refresh by triggering setState
-      setState(() {});
-    },
-    child: SingleChildScrollView(
-      physics: const AlwaysScrollableScrollPhysics(),
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Header Card
-          Card(
-            elevation: 6,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
+  Widget _buildRealTimeDataView() {
+    // final dateFormatter = DateFormat('yyyy/MM/dd HH:mm:ss.SSS');
+    // final taiwanTime = lastTimestamp?.add(const Duration(hours: 8)); // Convert to Taiwan time (UTC+8)
+
+    return RefreshIndicator(
+      onRefresh: () async {
+        // Force a refresh by triggering setState
+        setState(() {});
+      },
+      child: SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Header Card
+            Card(
+              elevation: 6,
+              shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(16),
-                gradient: const LinearGradient(
-                  colors: [Color(0xFF00BCD4), Color(0xFF0097A7)],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
+              ),
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(16),
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF00BCD4), Color(0xFF0097A7)],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Row(
+                      children: [
+                        Icon(Icons.sensors, color: Colors.white, size: 28),
+                        SizedBox(width: 12),
+                        Text(
+                          'Real-time IMU Data',
+                          style: TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    // Text(
+                    //   taiwanTime != null
+                    //       ? '${dateFormatter.format(taiwanTime)} TWN'
+                    //       : 'No data received',
+                    //   style: const TextStyle(
+                    //     fontSize: 16,
+                    //     color: Colors.white70,
+                    //     fontFamily: 'Courier',
+                    //   ),
+                    // ),
+                  ],
                 ),
               ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Row(
-                    children: [
-                      Icon(
-                        Icons.sensors,
-                        color: Colors.white,
-                        size: 28,
-                      ),
-                      SizedBox(width: 12),
-                      Text(
-                        'Real-time IMU Data',
-                        style: TextStyle(
-                          fontSize: 24,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  // Text(
-                  //   taiwanTime != null 
-                  //       ? '${dateFormatter.format(taiwanTime)} TWN'
-                  //       : 'No data received',
-                  //   style: const TextStyle(
-                  //     fontSize: 16,
-                  //     color: Colors.white70,
-                  //     fontFamily: 'Courier',
-                  //   ),
-                  // ),
-                ],
-              ),
             ),
-          ),
-          const SizedBox(height: 20),
+            const SizedBox(height: 20),
 
-          // Recording Controls Card
-          Card(
-            elevation: 4,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: Padding(
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(10),
-                        decoration: BoxDecoration(
-                          color: isRecording 
-                              ? Colors.red.withOpacity(0.1)
-                              : Colors.blue.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(12),
+            // Recording Controls Card
+            Card(
+              elevation: 4,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color:
+                                isRecording
+                                    ? Colors.red.withOpacity(0.1)
+                                    : Colors.blue.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Icon(
+                            isRecording
+                                ? Icons.stop
+                                : Icons.fiber_manual_record,
+                            color: isRecording ? Colors.red : Colors.blue,
+                            size: 24,
+                          ),
                         ),
-                        child: Icon(
-                          isRecording ? Icons.stop : Icons.fiber_manual_record,
-                          color: isRecording ? Colors.red : Colors.blue,
-                          size: 24,
+                        const SizedBox(width: 12),
+                        Text(
+                          isRecording
+                              ? 'Recording in Progress'
+                              : 'Recording Controls',
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                            color:
+                                isRecording
+                                    ? Colors.red
+                                    : const Color(0xFF333333),
+                          ),
                         ),
-                      ),
-                      const SizedBox(width: 12),
-                      Text(
-                        isRecording ? 'Recording in Progress' : 'Recording Controls',
-                        style: TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                          color: isRecording ? Colors.red : const Color(0xFF333333),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 20),
-                  
-                  // Recording Mode Dropdown
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                    decoration: BoxDecoration(
-                      border: Border.all(color: Colors.grey.shade300),
-                      borderRadius: BorderRadius.circular(12),
-                      color: Colors.white,
+                      ],
                     ),
-                    child: DropdownButtonHideUnderline(
-                      child: DropdownButton<String>(
-                        value: selectedMode,
-                        isExpanded: true,
-                        hint: const Text('Select Recording Mode'),
-                        icon: const Icon(Icons.arrow_drop_down),
-                        items: recordingModes.map((String mode) {
-                          return DropdownMenuItem<String>(
-                            value: mode,
-                            child: Row(
-                              children: [
-                                Icon(
-                                  mode == 'Reference' ? Icons.bookmark : Icons.school,
-                                  color: mode == 'Reference' ? Colors.orange : Colors.green,
-                                  size: 20,
-                                ),
-                                const SizedBox(width: 8),
-                                Text(
-                                  mode,
-                                  style: const TextStyle(fontSize: 16),
-                                ),
-                              ],
-                            ),
-                          );
-                        }).toList(),
-                        onChanged: isRecording ? null : (String? newValue) {
-                          setState(() {
-                            selectedMode = newValue!;
-                          });
-                        },
+                    const SizedBox(height: 20),
+
+                    // Recording Mode Dropdown
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 4,
                       ),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  
-                  // Action Dropdown
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                    decoration: BoxDecoration(
-                      border: Border.all(color: Colors.grey.shade300),
-                      borderRadius: BorderRadius.circular(12),
-                      color: Colors.white,
-                    ),
-                    child: DropdownButtonHideUnderline(
-                      child: DropdownButton<String>(
-                        value: selectedAction,
-                        isExpanded: true,
-                        hint: const Text('Select Action Type'),
-                        icon: const Icon(Icons.arrow_drop_down),
-                        items: actions.map((String action) {
-                          IconData actionIcon;
-                          Color actionColor;
-                          
-                          switch (action) {
-                            case 'smash':
-                              actionIcon = Icons.sports_tennis;
-                              actionColor = Colors.red;
-                              break;
-                            case 'drive':
-                              actionIcon = Icons.arrow_forward;
-                              actionColor = Colors.blue;
-                              break;
-                            case 'clear':
-                              actionIcon = Icons.arrow_upward;
-                              actionColor = Colors.green;
-                              break;
-                            case 'drop':
-                              actionIcon = Icons.arrow_downward;
-                              actionColor = Colors.orange;
-                              break;
-                            case 'toss':
-                              actionIcon = Icons.pan_tool;
-                              actionColor = Colors.purple;
-                              break;
-                            default:
-                              actionIcon = Icons.help_outline;
-                              actionColor = Colors.grey;
-                          }
-                          
-                          return DropdownMenuItem<String>(
-                            value: action,
-                            child: Row(
-                              children: [
-                                Icon(
-                                  actionIcon,
-                                  color: actionColor,
-                                  size: 20,
-                                ),
-                                const SizedBox(width: 8),
-                                Text(
-                                  action.toUpperCase(),
-                                  style: const TextStyle(fontSize: 16),
-                                ),
-                              ],
-                            ),
-                          );
-                        }).toList(),
-                        onChanged: isRecording ? null : (String? newValue) {
-                          setState(() {
-                            selectedAction = newValue!;
-                          });
-                        },
+                      decoration: BoxDecoration(
+                        border: Border.all(color: Colors.grey.shade300),
+                        borderRadius: BorderRadius.circular(12),
+                        color: Colors.white,
                       ),
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                  
-                  // Recording Status and Button
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Status',
-                              style: TextStyle(
-                                fontSize: 14,
-                                color: Colors.grey.shade600,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Row(
-                              children: [
-                                Container(
-                                  width: 12,
-                                  height: 12,
-                                  decoration: BoxDecoration(
-                                    color: isRecording ? Colors.red : Colors.grey,
-                                    shape: BoxShape.circle,
+                      child: DropdownButtonHideUnderline(
+                        child: DropdownButton<String>(
+                          value: selectedMode,
+                          isExpanded: true,
+                          hint: const Text('Select Recording Mode'),
+                          icon: const Icon(Icons.arrow_drop_down),
+                          items:
+                              recordingModes.map((String mode) {
+                                return DropdownMenuItem<String>(
+                                  value: mode,
+                                  child: Row(
+                                    children: [
+                                      Icon(
+                                        mode == 'Reference'
+                                            ? Icons.bookmark
+                                            : Icons.school,
+                                        color:
+                                            mode == 'Reference'
+                                                ? Colors.orange
+                                                : Colors.green,
+                                        size: 20,
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Text(
+                                        mode,
+                                        style: const TextStyle(fontSize: 16),
+                                      ),
+                                    ],
                                   ),
-                                ),
-                                const SizedBox(width: 8),
-                                Text(
-                                  isRecording ? 'Recording...' : 'Ready',
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.bold,
-                                    color: isRecording ? Colors.red : Colors.grey,
+                                );
+                              }).toList(),
+                          onChanged:
+                              isRecording
+                                  ? null
+                                  : (String? newValue) {
+                                    setState(() {
+                                      selectedMode = newValue!;
+                                    });
+                                  },
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Action Dropdown
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        border: Border.all(color: Colors.grey.shade300),
+                        borderRadius: BorderRadius.circular(12),
+                        color: Colors.white,
+                      ),
+                      child: DropdownButtonHideUnderline(
+                        child: DropdownButton<String>(
+                          value: selectedAction,
+                          isExpanded: true,
+                          hint: const Text('Select Action Type'),
+                          icon: const Icon(Icons.arrow_drop_down),
+                          items:
+                              actions.map((String action) {
+                                IconData actionIcon;
+                                Color actionColor;
+
+                                switch (action) {
+                                  case 'smash':
+                                    actionIcon = Icons.sports_tennis;
+                                    actionColor = Colors.red;
+                                    break;
+                                  case 'drive':
+                                    actionIcon = Icons.arrow_forward;
+                                    actionColor = Colors.blue;
+                                    break;
+                                  case 'clear':
+                                    actionIcon = Icons.arrow_upward;
+                                    actionColor = Colors.green;
+                                    break;
+                                  case 'drop':
+                                    actionIcon = Icons.arrow_downward;
+                                    actionColor = Colors.orange;
+                                    break;
+                                  case 'toss':
+                                    actionIcon = Icons.pan_tool;
+                                    actionColor = Colors.purple;
+                                    break;
+                                  default:
+                                    actionIcon = Icons.help_outline;
+                                    actionColor = Colors.grey;
+                                }
+
+                                return DropdownMenuItem<String>(
+                                  value: action,
+                                  child: Row(
+                                    children: [
+                                      Icon(
+                                        actionIcon,
+                                        color: actionColor,
+                                        size: 20,
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Text(
+                                        action.toUpperCase(),
+                                        style: const TextStyle(fontSize: 16),
+                                      ),
+                                    ],
                                   ),
-                                ),
-                              ],
-                            ),
-                            if (isRecording) ...[
-                              const SizedBox(height: 8),
+                                );
+                              }).toList(),
+                          onChanged:
+                              isRecording
+                                  ? null
+                                  : (String? newValue) {
+                                    setState(() {
+                                      selectedAction = newValue!;
+                                    });
+                                  },
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+
+                    // Recording Status and Button
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
                               Text(
-                                'Samples: ${recordedData.length}',
+                                'Status',
                                 style: TextStyle(
                                   fontSize: 14,
                                   color: Colors.grey.shade600,
+                                  fontWeight: FontWeight.w500,
                                 ),
                               ),
+                              const SizedBox(height: 4),
+                              Row(
+                                children: [
+                                  Container(
+                                    width: 12,
+                                    height: 12,
+                                    decoration: BoxDecoration(
+                                      color:
+                                          isRecording
+                                              ? Colors.red
+                                              : Colors.grey,
+                                      shape: BoxShape.circle,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    isRecording ? 'Recording...' : 'Ready',
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.bold,
+                                      color:
+                                          isRecording
+                                              ? Colors.red
+                                              : Colors.grey,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              if (isRecording) ...[
+                                const SizedBox(height: 8),
+                                Text(
+                                  'Samples: ${recordedData.length}',
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    color: Colors.grey.shade600,
+                                  ),
+                                ),
+                              ],
                             ],
-                          ],
-                        ),
-                      ),
-                      const SizedBox(width: 16),
-                      ElevatedButton.icon(
-                        onPressed: connectedDevice != null ? toggleRecording : null,
-                        icon: Icon(
-                          isRecording ? Icons.stop : Icons.fiber_manual_record,
-                          size: 20,
-                        ),
-                        label: Text(
-                          isRecording ? 'Stop Recording' : 'Start Recording',
-                          style: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
                           ),
                         ),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: isRecording ? Colors.red : const Color(0xFF00BCD4),
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 24,
-                            vertical: 12,
+                        const SizedBox(width: 16),
+                        ElevatedButton.icon(
+                          onPressed:
+                              connectedDevice != null ? toggleRecording : null,
+                          icon: Icon(
+                            isRecording
+                                ? Icons.stop
+                                : Icons.fiber_manual_record,
+                            size: 20,
                           ),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(25),
+                          label: Text(
+                            isRecording ? 'Stop Recording' : 'Start Recording',
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
-                          elevation: 4,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor:
+                                isRecording
+                                    ? Colors.red
+                                    : const Color(0xFF00BCD4),
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 24,
+                              vertical: 12,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(25),
+                            ),
+                            elevation: 4,
+                          ),
                         ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(height: 20),
-
-          // Device Info Card
-          // _buildDataCard(
-          //   icon: Icons.memory,
-          //   title: 'Device Information',
-          //   iconColor: Colors.orange,
-          //   child: _buildInfoItem(
-          //     'Device ID',
-          //     currentDeviceId.isNotEmpty ? currentDeviceId : 'No data',
-          //     Icons.fingerprint,
-          //   ),
-          // ),
-          // const SizedBox(height: 16),
-
-          // Acceleration Card
-          _buildDataCard(
-            icon: Icons.speed,
-            title: 'Acceleration (g)',
-            iconColor: Colors.blue,
-            child: Column(
-              children: [
-                _buildSensorDataRow(
-                  'X-axis (forward)',
-                  currentAccelX,
-                  'g',
-                  Colors.red,
-                  Icons.arrow_forward,
-                ),
-                const Divider(height: 20),
-                _buildSensorDataRow(
-                  'Y-axis (sideways)',
-                  currentAccelY,
-                  'g',
-                  Colors.green,
-                  Icons.swap_horiz,
-                ),
-                const Divider(height: 20),
-                _buildSensorDataRow(
-                  'Z-axis (upward)',
-                  currentAccelZ,
-                  'g',
-                  Colors.blue,
-                  Icons.arrow_upward,
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 16),
-
-          // Gyroscope Card
-          _buildDataCard(
-            icon: Icons.rotate_right,
-            title: 'Gyroscope (dps)',
-            iconColor: Colors.purple,
-            child: Column(
-              children: [
-                _buildSensorDataRow(
-                  'X-axis rotation',
-                  currentGyroX,
-                  'dps',
-                  Colors.orange,
-                  Icons.rotate_left,
-                ),
-                const Divider(height: 20),
-                _buildSensorDataRow(
-                  'Y-axis rotation',
-                  currentGyroY,
-                  'dps',
-                  Colors.purple,
-                  Icons.rotate_right,
-                ),
-                const Divider(height: 20),
-                _buildSensorDataRow(
-                  'Z-axis rotation',
-                  currentGyroZ,
-                  'dps',
-                  Colors.cyan,
-                  Icons.sync,
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 16),
-
-          // Microphone Card
-          _buildDataCard(
-            icon: Icons.mic,
-            title: 'Microphone',
-            iconColor: Colors.green,
-            child: Column(
-              children: [
-                _buildSensorDataRow(
-                  'Level',
-                  currentMicLevel.toDouble(),
-                  '',
-                  Colors.teal,
-                  Icons.graphic_eq,
-                ),
-                const Divider(height: 20),
-                _buildSensorDataRow(
-                  'Peak',
-                  currentMicPeak.toDouble(),
-                  '',
-                  Colors.amber,
-                  Icons.timeline,
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 32),
-
-          // Status indicator
-          Center(
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-              decoration: BoxDecoration(
-                color: lastTimestamp != null ? Colors.green : Colors.grey,
-                borderRadius: BorderRadius.circular(25),
-                boxShadow: [
-                  BoxShadow(
-                    color: (lastTimestamp != null ? Colors.green : Colors.grey).withOpacity(0.3),
-                    blurRadius: 8,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    lastTimestamp != null ? Icons.check_circle : Icons.error,
-                    color: Colors.white,
-                    size: 20,
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    lastTimestamp != null ? 'Data Streaming' : 'No Data',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16,
+                      ],
                     ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
+
+            // Device Info Card
+            // _buildDataCard(
+            //   icon: Icons.memory,
+            //   title: 'Device Information',
+            //   iconColor: Colors.orange,
+            //   child: _buildInfoItem(
+            //     'Device ID',
+            //     currentDeviceId.isNotEmpty ? currentDeviceId : 'No data',
+            //     Icons.fingerprint,
+            //   ),
+            // ),
+            // const SizedBox(height: 16),
+
+            // Acceleration Card
+            _buildDataCard(
+              icon: Icons.speed,
+              title: 'Acceleration (g)',
+              iconColor: Colors.blue,
+              child: Column(
+                children: [
+                  _buildSensorDataRow(
+                    'X-axis (forward)',
+                    currentAccelX,
+                    'g',
+                    Colors.red,
+                    Icons.arrow_forward,
+                  ),
+                  const Divider(height: 20),
+                  _buildSensorDataRow(
+                    'Y-axis (sideways)',
+                    currentAccelY,
+                    'g',
+                    Colors.green,
+                    Icons.swap_horiz,
+                  ),
+                  const Divider(height: 20),
+                  _buildSensorDataRow(
+                    'Z-axis (upward)',
+                    currentAccelZ,
+                    'g',
+                    Colors.blue,
+                    Icons.arrow_upward,
                   ),
                 ],
               ),
             ),
-          ),
-        ],
+            const SizedBox(height: 16),
+
+            // Gyroscope Card
+            _buildDataCard(
+              icon: Icons.rotate_right,
+              title: 'Gyroscope (dps)',
+              iconColor: Colors.purple,
+              child: Column(
+                children: [
+                  _buildSensorDataRow(
+                    'X-axis rotation',
+                    currentGyroX,
+                    'dps',
+                    Colors.orange,
+                    Icons.rotate_left,
+                  ),
+                  const Divider(height: 20),
+                  _buildSensorDataRow(
+                    'Y-axis rotation',
+                    currentGyroY,
+                    'dps',
+                    Colors.purple,
+                    Icons.rotate_right,
+                  ),
+                  const Divider(height: 20),
+                  _buildSensorDataRow(
+                    'Z-axis rotation',
+                    currentGyroZ,
+                    'dps',
+                    Colors.cyan,
+                    Icons.sync,
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            // Microphone Card
+            _buildDataCard(
+              icon: Icons.mic,
+              title: 'Microphone',
+              iconColor: Colors.green,
+              child: Column(
+                children: [
+                  _buildSensorDataRow(
+                    'Level',
+                    currentMicLevel.toDouble(),
+                    '',
+                    Colors.teal,
+                    Icons.graphic_eq,
+                  ),
+                  const Divider(height: 20),
+                  _buildSensorDataRow(
+                    'Peak',
+                    currentMicPeak.toDouble(),
+                    '',
+                    Colors.amber,
+                    Icons.timeline,
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 32),
+
+            // Status indicator
+            Center(
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 12,
+                ),
+                decoration: BoxDecoration(
+                  color: lastTimestamp != null ? Colors.green : Colors.grey,
+                  borderRadius: BorderRadius.circular(25),
+                  boxShadow: [
+                    BoxShadow(
+                      color: (lastTimestamp != null
+                              ? Colors.green
+                              : Colors.grey)
+                          .withOpacity(0.3),
+                      blurRadius: 8,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      lastTimestamp != null ? Icons.check_circle : Icons.error,
+                      color: Colors.white,
+                      size: 20,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      lastTimestamp != null ? 'Data Streaming' : 'No Data',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
-    ),
-  );
-}
-  
+    );
+  }
 
   Widget _buildDataCard({
     required IconData icon,
@@ -1033,9 +1074,7 @@ Widget _buildRealTimeDataView() {
   }) {
     return Card(
       elevation: 4,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: Padding(
         padding: const EdgeInsets.all(20),
         child: Column(
@@ -1049,11 +1088,7 @@ Widget _buildRealTimeDataView() {
                     color: iconColor.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  child: Icon(
-                    icon,
-                    color: iconColor,
-                    size: 24,
-                  ),
+                  child: Icon(icon, color: iconColor, size: 24),
                 ),
                 const SizedBox(width: 12),
                 Text(
@@ -1083,11 +1118,7 @@ Widget _buildRealTimeDataView() {
   ) {
     return Row(
       children: [
-        Icon(
-          icon,
-          color: color,
-          size: 20,
-        ),
+        Icon(icon, color: color, size: 20),
         const SizedBox(width: 12),
         Expanded(
           child: Column(
@@ -1121,7 +1152,11 @@ Widget _buildRealTimeDataView() {
             borderRadius: BorderRadius.circular(20),
           ),
           child: Text(
-            value.abs() > 10 ? 'HIGH' : value.abs() > 5 ? 'MED' : 'LOW',
+            value.abs() > 10
+                ? 'HIGH'
+                : value.abs() > 5
+                ? 'MED'
+                : 'LOW',
             style: TextStyle(
               color: color,
               fontWeight: FontWeight.bold,
@@ -1136,11 +1171,7 @@ Widget _buildRealTimeDataView() {
   Widget _buildInfoItem(String label, String value, IconData icon) {
     return Row(
       children: [
-        Icon(
-          icon,
-          color: Colors.orange,
-          size: 20,
-        ),
+        Icon(icon, color: Colors.orange, size: 20),
         const SizedBox(width: 12),
         Expanded(
           child: Column(
@@ -1176,89 +1207,400 @@ Widget _buildRealTimeDataView() {
     return SingleChildScrollView(
       child: Column(
         children: [
-          const SizedBox(height: 10),
-          if (!isRecording)
-            Container(
-              margin: const EdgeInsets.symmetric(vertical: 8),
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.grey.shade300),
-              ),
-              child: DropdownButton<String>(
-                value: selectedMode,
-                isExpanded: true,
-                underline: Container(),
-                items:
-                    recordingModes
-                        .map(
-                          (mode) =>
-                              DropdownMenuItem(value: mode, child: Text(mode)),
-                        )
-                        .toList(),
-                onChanged: (value) {
-                  setState(() {
-                    selectedMode = value!;
-                  });
-                },
-              ),
+          const SizedBox(height: 16),
+
+          // 控制面板卡片
+          Card(
+            elevation: 6,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
             ),
-          if (!isRecording)
-            Container(
-              margin: const EdgeInsets.symmetric(vertical: 8),
-              padding: const EdgeInsets.symmetric(horizontal: 16),
+            margin: const EdgeInsets.symmetric(horizontal: 16),
+            child: Container(
+              padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.grey.shade300),
+                borderRadius: BorderRadius.circular(16),
+                gradient: LinearGradient(
+                  colors: [Colors.grey.shade50, Colors.white],
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                ),
               ),
-              child: DropdownButton<String>(
-                value: selectedAction,
-                isExpanded: true,
-                underline: Container(),
-                items:
-                    actions
-                        .map(
-                          (action) => DropdownMenuItem(
-                            value: action,
-                            child: Text(action),
+              child: Column(
+                children: [
+                  // 标题
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF00BCD4).withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Icon(
+                          Icons.show_chart,
+                          color: Color(0xFF00BCD4),
+                          size: 24,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      const Text(
+                        'Recording Controls',
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF333333),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 24),
+
+                  // Recording Mode Dropdown - 美化版
+                  if (!isRecording) ...[
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Recording Mode',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            color: Color(0xFF333333),
                           ),
-                        )
-                        .toList(),
-                onChanged: (value) {
-                  setState(() {
-                    selectedAction = value!;
-                  });
-                },
-              ),
-            ),
-          Container(
-            margin: const EdgeInsets.symmetric(vertical: 16),
-            child: ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor:
-                    isRecording ? Colors.red : const Color(0xFF00BCD4),
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 24,
-                  vertical: 12,
-                ),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
-              ),
-              onPressed: toggleRecording,
-              child: Text(
-                isRecording ? '停止錄製' : '開始錄製',
-                style: const TextStyle(fontSize: 16),
+                        ),
+                        const SizedBox(height: 8),
+                        Container(
+                          width: double.infinity,
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: Colors.grey.shade300),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.grey.withOpacity(0.1),
+                                spreadRadius: 1,
+                                blurRadius: 4,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          child: DropdownButtonHideUnderline(
+                            child: DropdownButton<String>(
+                              value: selectedMode,
+                              isExpanded: true,
+                              icon: Container(
+                                padding: const EdgeInsets.all(4),
+                                decoration: BoxDecoration(
+                                  color: const Color(
+                                    0xFF00BCD4,
+                                  ).withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: const Icon(
+                                  Icons.arrow_drop_down,
+                                  color: Color(0xFF00BCD4),
+                                ),
+                              ),
+                              style: const TextStyle(
+                                fontSize: 16,
+                                color: Color(0xFF333333),
+                              ),
+                              items:
+                                  recordingModes.map((String mode) {
+                                    return DropdownMenuItem<String>(
+                                      value: mode,
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 16,
+                                          vertical: 12,
+                                        ),
+                                        child: Row(
+                                          children: [
+                                            Container(
+                                              padding: const EdgeInsets.all(8),
+                                              decoration: BoxDecoration(
+                                                color:
+                                                    mode == 'Reference'
+                                                        ? Colors.orange
+                                                            .withOpacity(0.1)
+                                                        : Colors.green
+                                                            .withOpacity(0.1),
+                                                borderRadius:
+                                                    BorderRadius.circular(8),
+                                              ),
+                                              child: Icon(
+                                                mode == 'Reference'
+                                                    ? Icons.bookmark
+                                                    : Icons.school,
+                                                color:
+                                                    mode == 'Reference'
+                                                        ? Colors.orange
+                                                        : Colors.green,
+                                                size: 20,
+                                              ),
+                                            ),
+                                            const SizedBox(width: 12),
+                                            Text(
+                                              mode,
+                                              style: const TextStyle(
+                                                fontSize: 16,
+                                                fontWeight: FontWeight.w500,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    );
+                                  }).toList(),
+                              onChanged: (String? newValue) {
+                                setState(() {
+                                  selectedMode = newValue!;
+                                });
+                              },
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 20),
+
+                    // Action Dropdown - 美化版
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Action Type',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            color: Color(0xFF333333),
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Container(
+                          width: double.infinity,
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: Colors.grey.shade300),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.grey.withOpacity(0.1),
+                                spreadRadius: 1,
+                                blurRadius: 4,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          child: DropdownButtonHideUnderline(
+                            child: DropdownButton<String>(
+                              value: selectedAction,
+                              isExpanded: true,
+                              icon: Container(
+                                padding: const EdgeInsets.all(4),
+                                decoration: BoxDecoration(
+                                  color: const Color(
+                                    0xFF00BCD4,
+                                  ).withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: const Icon(
+                                  Icons.arrow_drop_down,
+                                  color: Color(0xFF00BCD4),
+                                ),
+                              ),
+                              style: const TextStyle(
+                                fontSize: 16,
+                                color: Color(0xFF333333),
+                              ),
+                              items:
+                                  actions.map((String action) {
+                                    IconData actionIcon;
+                                    Color actionColor;
+
+                                    switch (action) {
+                                      case 'smash':
+                                        actionIcon = Icons.sports_tennis;
+                                        actionColor = Colors.red;
+                                        break;
+                                      case 'drive':
+                                        actionIcon = Icons.arrow_forward;
+                                        actionColor = Colors.blue;
+                                        break;
+                                      case 'clear':
+                                        actionIcon = Icons.arrow_upward;
+                                        actionColor = Colors.green;
+                                        break;
+                                      case 'drop':
+                                        actionIcon = Icons.arrow_downward;
+                                        actionColor = Colors.orange;
+                                        break;
+                                      case 'toss':
+                                        actionIcon = Icons.pan_tool;
+                                        actionColor = Colors.purple;
+                                        break;
+                                      default:
+                                        actionIcon = Icons.help_outline;
+                                        actionColor = Colors.grey;
+                                    }
+
+                                    return DropdownMenuItem<String>(
+                                      value: action,
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 16,
+                                          vertical: 12,
+                                        ),
+                                        child: Row(
+                                          children: [
+                                            Container(
+                                              padding: const EdgeInsets.all(8),
+                                              decoration: BoxDecoration(
+                                                color: actionColor.withOpacity(
+                                                  0.1,
+                                                ),
+                                                borderRadius:
+                                                    BorderRadius.circular(8),
+                                              ),
+                                              child: Icon(
+                                                actionIcon,
+                                                color: actionColor,
+                                                size: 20,
+                                              ),
+                                            ),
+                                            const SizedBox(width: 12),
+                                            Text(
+                                              action.toUpperCase(),
+                                              style: const TextStyle(
+                                                fontSize: 16,
+                                                fontWeight: FontWeight.w500,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    );
+                                  }).toList(),
+                              onChanged: (String? newValue) {
+                                setState(() {
+                                  selectedAction = newValue!;
+                                });
+                              },
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 24),
+                  ],
+
+                  // Recording Button - 美化版
+                  Container(
+                    width: double.infinity,
+                    height: 60,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(16),
+                      gradient: LinearGradient(
+                        colors:
+                            isRecording
+                                ? [Colors.red.shade400, Colors.red.shade600]
+                                : [
+                                  const Color(0xFF00BCD4),
+                                  const Color(0xFF0097A7),
+                                ],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: (isRecording
+                                  ? Colors.red
+                                  : const Color(0xFF00BCD4))
+                              .withOpacity(0.3),
+                          spreadRadius: 1,
+                          blurRadius: 8,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.transparent,
+                        foregroundColor: Colors.white,
+                        shadowColor: Colors.transparent,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 24,
+                          vertical: 12,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                      ),
+                      onPressed: toggleRecording,
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.2),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Icon(
+                              isRecording
+                                  ? Icons.stop
+                                  : Icons.fiber_manual_record,
+                              size: 24,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Text(
+                            isRecording ? 'Stop Recording' : 'Start Recording',
+                            style: const TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          if (isRecording) ...[
+                            const SizedBox(width: 8),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 4,
+                              ),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withOpacity(0.2),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Text(
+                                '${recordedData.length}',
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
           ),
-          const SizedBox(height: 10),
+
+          const SizedBox(height: 20),
+
+          // Acceleration Chart
           Container(
-            padding: const EdgeInsets.all(8),
+            margin: const EdgeInsets.symmetric(horizontal: 16),
+            padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
               color: Colors.grey.shade100,
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.grey.shade200),
             ),
             child: Column(
               children: [
@@ -1266,6 +1608,7 @@ Widget _buildRealTimeDataView() {
                   'Acceleration (m/s²)',
                   style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
+                const SizedBox(height: 16),
                 SizedBox(
                   height: 250,
                   child: LineChart(
@@ -1327,12 +1670,17 @@ Widget _buildRealTimeDataView() {
               ],
             ),
           ),
-          const SizedBox(height: 10),
+
+          const SizedBox(height: 16),
+
+          // Gyroscope Chart
           Container(
-            padding: const EdgeInsets.all(8),
+            margin: const EdgeInsets.symmetric(horizontal: 16),
+            padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
               color: Colors.grey.shade100,
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.grey.shade200),
             ),
             child: Column(
               children: [
@@ -1340,6 +1688,7 @@ Widget _buildRealTimeDataView() {
                   'Gyroscope (deg/s)',
                   style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
+                const SizedBox(height: 16),
                 SizedBox(
                   height: 250,
                   child: LineChart(
@@ -1401,6 +1750,8 @@ Widget _buildRealTimeDataView() {
               ],
             ),
           ),
+
+          const SizedBox(height: 20),
         ],
       ),
     );
