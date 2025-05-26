@@ -328,8 +328,8 @@ class _BleScannerScreenState extends State<BleScannerScreen> {
                       height: 250,
                       child: LineChart(
                         LineChartData(
-                          minY: -50,
-                          maxY: 50,
+                          minY: -10,
+                          maxY: 10,
                           lineBarsData: [
                             LineChartBarData(
                               spots: axData,
@@ -397,7 +397,7 @@ class _BleScannerScreenState extends State<BleScannerScreen> {
                       child: LineChart(
                         LineChartData(
                           minY: 0,
-                          maxY: 5000,
+                          maxY: 20000,
                           lineBarsData: [
                             LineChartBarData(
                               spots: micLevelData,
