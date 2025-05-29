@@ -293,8 +293,8 @@ class _BleScannerScreenState extends State<BleScannerScreen> {
         
         print('═══ IMU 數據時間戳資訊 ═══');
         print('原始時間戳: $timestamp ms');
-        print('sensor時間 (台灣): ${formatTaiwanTime(deviceTimeTW)}');
-        print('當前時間 (台灣): ${formatTaiwanTime(currentTimeTW)}');
+        print('sensor Time (TW): ${formatTaiwanTime(deviceTimeTW)}');
+        print('當前時間 (TW): ${formatTaiwanTime(currentTimeTW)}');
         print('時間差異: ${timeDifference}ms (${(timeDifference/1000).toStringAsFixed(3)}s)');
         print('sensorID: ${eqpId.toRadixString(16).toUpperCase()}');
         print('數據包計數: $counter');
