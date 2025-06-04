@@ -291,14 +291,14 @@ class _BleScannerScreenState extends State<BleScannerScreen> {
                  '${dt.second.toString().padLeft(2, '0')}.${dt.millisecond.toString().padLeft(3, '0')}';
         }
         
-        print('═══ IMU 數據時間戳資訊 ═══');
-        print('原始時間戳: $timestamp ms');
-        print('sensor Time (TW): ${formatTaiwanTime(deviceTimeTW)}');
-        print('當前時間 (TW): ${formatTaiwanTime(currentTimeTW)}');
-        print('時間差異: ${timeDifference}ms (${(timeDifference/1000).toStringAsFixed(3)}s)');
-        print('sensorID: ${eqpId.toRadixString(16).toUpperCase()}');
-        print('數據包計數: $counter');
-        print('──────────────────────────');
+        print('接收到數據: '
+              '時間戳: ${formatTaiwanTime(deviceTimeTW)} (UTC+8), '
+              '設備時間差: ${timeDifference}ms, '
+              '設備ID: ${eqpId.toRadixString(16).toUpperCase()}, '
+              'ax: $ax, ay: $ay, az: $az, '
+              'gx: $gx, gy: $gy, gz: $gz, '
+              '麥克風音量: $micLevel, 峰值: $micPeak');
+
 
         // 處理 Az 數據 - 增強峰值顯著性
         double processedAz = az;
