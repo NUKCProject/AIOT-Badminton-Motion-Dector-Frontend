@@ -6,8 +6,6 @@ import 'dart:typed_data';
 import 'dart:convert';
 import 'dart:async';
 import 'dart:developer' as developer;
-import 'dart:io';
-import 'package:path_provider/path_provider.dart';
 
 void main() {
   // 設置日誌過濾，隱藏 Flutter Blue Plus 的 debug 訊息
@@ -335,56 +333,6 @@ class _BleScannerScreenState extends State<BleScannerScreen> {
     }
   }
 
-  // 新增：保存預測數據到CSV
-  Future<void> savePredictionDataToCSV(
-    List<Map<String, dynamic>> sensorData,
-  ) async {
-    try {
-      // 嘗試獲取外部存儲目錄，如果失敗則使用應用程式目錄
-      Directory? directory;
-      try {
-        directory = await getExternalStorageDirectory();
-      } catch (e) {
-        print('無法獲取外部存儲目錄: $e');
-      }
-
-      // 如果外部存儲不可用，使用應用程式文件目錄
-      directory ??= await getApplicationDocumentsDirectory();
-
-      final timestamp = DateTime.now().millisecondsSinceEpoch;
-      final fileName = 'prediction_data_$timestamp.csv';
-      final filePath = '${directory.path}/$fileName';
-      final file = File(filePath);
-
-      print('準備保存CSV檔案到: $filePath');
-
-      // CSV 標題行
-      String csvContent = 'ts,ax,ay,az,gx,gy,gz,mic_level,mic_peak\n';
-
-      // 寫入30筆連續性資料
-      for (var data in sensorData) {
-        csvContent +=
-            '${data['ts']},${data['ax']},${data['ay']},${data['az']},${data['gx']},${data['gy']},${data['gz']},${data['mic_level']},${data['mic_peak']}\n';
-      }
-
-      await file.writeAsString(csvContent);
-
-      // 驗證檔案是否成功建立
-      if (await file.exists()) {
-        final fileSize = await file.length();
-        print('✓ CSV檔案保存成功！');
-        print('  檔案路徑: $filePath');
-        print('  檔案大小: $fileSize bytes');
-        print('  資料筆數: ${sensorData.length}筆');
-      } else {
-        print('✗ 檔案保存失敗：檔案不存在');
-      }
-    } catch (e, stackTrace) {
-      print('✗ 保存CSV檔案時發生錯誤: $e');
-      print('錯誤詳情: $stackTrace');
-    }
-  }
-
   // 修改：發送預測請求
   Future<void> sendPredictionRequest() async {
     if (predictionBuffer.isEmpty) return;
@@ -410,9 +358,6 @@ class _BleScannerScreenState extends State<BleScannerScreen> {
       };
 
       print('發送預測請求，數據點數: ${predictionBuffer.length}');
-
-      // 保存30筆連續性資料到CSV
-      await savePredictionDataToCSV(predictionBuffer);
 
       final response = await http.post(
         Uri.parse('http://210.61.41.223:5000/predict'),
