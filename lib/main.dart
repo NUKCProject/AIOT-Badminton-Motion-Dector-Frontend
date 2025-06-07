@@ -126,7 +126,7 @@ class _BleScannerScreenState extends State<BleScannerScreen> {
 
   void startStatisticsTimer() {
     statisticsTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
-      print('Data rate: $dataCountThisSecond packets/second');
+      // print('Data rate: $dataCountThisSecond packets/second');
 
       if (averageDataRate == 0) {
         averageDataRate = dataCountThisSecond.toDouble();
@@ -138,9 +138,9 @@ class _BleScannerScreenState extends State<BleScannerScreen> {
       if (maxPoints < 10) maxPoints = 10;
       if (maxPoints > 500) maxPoints = 500;
 
-      print(
-        'Display window: ${displayTimeWindow}s, Max points: $maxPoints, Avg rate: ${averageDataRate.toStringAsFixed(1)} Hz',
-      );
+      // print(
+      //   'Display window: ${displayTimeWindow}s, Max points: $maxPoints, Avg rate: ${averageDataRate.toStringAsFixed(1)} Hz',
+      // );
 
       dataCountThisSecond = 0;
       lastSecondTime = DateTime.now();
@@ -402,20 +402,20 @@ class _BleScannerScreenState extends State<BleScannerScreen> {
                     "gx": data["gx"],
                     "gy": data["gy"],
                     "gz": data["gz"],
-                    "mic_level": data["mic_level"],
-                    "mic_peak": data["mic_peak"],
+                    // "mic_level": data["mic_level"],
+                    // "mic_peak": data["mic_peak"],
                   },
                 )
                 .toList(),
       };
 
       print('發送預測請求，數據點數: ${predictionBuffer.length}');
-
+      print('請求數據: $requestData');
       // 保存30筆連續性資料到CSV
       await savePredictionDataToCSV(predictionBuffer);
 
       final response = await http.post(
-        Uri.parse('http://210.61.41.223:5000/predict'),
+        Uri.parse('https://badminton-461016.de.r.appspot.com/predict'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode(requestData),
       );
@@ -434,7 +434,7 @@ class _BleScannerScreenState extends State<BleScannerScreen> {
         });
 
         showSnackbar(
-          '預測成功: ${responseData['stroke_type']} (${(responseData['confidence'] * 100).toStringAsFixed(1)}%)',
+          '預測成功: ${responseData['prediction']} (${(responseData['confidence'] * 100).toStringAsFixed(1)}%)',
           true,
         );
       } else {
@@ -482,15 +482,15 @@ class _BleScannerScreenState extends State<BleScannerScreen> {
               '${dt.second.toString().padLeft(2, '0')}.${dt.millisecond.toString().padLeft(3, '0')}';
         }
 
-        print(
-          '接收到數據: '
-          '時間戳: ${formatTaiwanTime(deviceTimeTW)} (UTC+8), '
-          '設備時間差: ${timeDifference}ms, '
-          '設備ID: ${eqpId.toRadixString(16).toUpperCase()}, '
-          'ax: $ax, ay: $ay, az: $az, '
-          'gx: $gx, gy: $gy, gz: $gz, '
-          '麥克風音量: $micLevel, 峰值: $micPeak',
-        );
+        // print(
+        //   '接收到數據: '
+        //   '時間戳: ${formatTaiwanTime(deviceTimeTW)} (UTC+8), '
+        //   '設備時間差: ${timeDifference}ms, '
+        //   '設備ID: ${eqpId.toRadixString(16).toUpperCase()}, '
+        //   'ax: $ax, ay: $ay, az: $az, '
+        //   'gx: $gx, gy: $gy, gz: $gz, '
+        //   '麥克風音量: $micLevel, 峰值: $micPeak',
+        // );
 
         // 新增：檢查預測觸發和收集數據
         checkPredictionTrigger(ax, ay, az);
