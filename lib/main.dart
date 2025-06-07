@@ -16,10 +16,6 @@ void main() {
   runApp(const MyApp());
 }
 
-// 注意：如果是Android系統，可能需要在 android/app/src/main/AndroidManifest.xml 中添加權限：
-// <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
-// <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
-
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
@@ -111,6 +107,9 @@ class _BleScannerScreenState extends State<BleScannerScreen> {
   final int maxBufferSize = 50; // 保持足夠的緩衝區大小
   int remainingDataToCollect = 0; // 觸發後還需要收集的數據數量
 
+  // 新增：預測結果顯示相關變數
+  Map<String, dynamic>? latestPredictionResult;
+
   @override
   void initState() {
     super.initState();
@@ -183,6 +182,7 @@ class _BleScannerScreenState extends State<BleScannerScreen> {
           dataBuffer.clear();
           isCollectingPredictionData = false;
           remainingDataToCollect = 0;
+          latestPredictionResult = null;
         });
         startScan();
       }
@@ -385,7 +385,7 @@ class _BleScannerScreenState extends State<BleScannerScreen> {
     }
   }
 
-  // 新增：發送預測請求
+  // 修改：發送預測請求
   Future<void> sendPredictionRequest() async {
     if (predictionBuffer.isEmpty) return;
 
@@ -424,19 +424,16 @@ class _BleScannerScreenState extends State<BleScannerScreen> {
         final responseData = jsonDecode(response.body);
         print('收到預測結果: $responseData');
 
-        // 保存到歷史記錄
+        // 設置最新預測結果和保存到歷史記錄
         setState(() {
+          latestPredictionResult = responseData;
           predictionHistory.insert(0, responseData);
-          // 只保留最近50筆記錄
-          if (predictionHistory.length > 50) {
+          // 只保留最近20筆記錄
+          if (predictionHistory.length > 20) {
             predictionHistory.removeLast();
           }
         });
 
-        showSnackbar(
-          '預測成功: ${responseData['stroke_type']} (${(responseData['confidence'] * 100).toStringAsFixed(1)}%)',
-          true,
-        );
       } else {
         print('預測請求失敗: ${response.statusCode}');
         showSnackbar('預測請求失敗: ${response.statusCode}', false);
@@ -667,12 +664,14 @@ class _BleScannerScreenState extends State<BleScannerScreen> {
                           isPredictionEnabled: isPredictionEnabled,
                           isCollectingData: isCollectingPredictionData,
                           bufferSize: predictionBuffer.length,
+                          latestPredictionResult: latestPredictionResult,
                           onTogglePrediction: (value) {
                             setState(() {
                               isPredictionEnabled = value;
                               if (!value) {
                                 predictionBuffer.clear();
                                 isCollectingPredictionData = false;
+                                latestPredictionResult = null;
                               }
                             });
                           },
@@ -975,7 +974,7 @@ class _BleScannerScreenState extends State<BleScannerScreen> {
                               Row(
                                 children: [
                                   const Text(
-                                    '🚀 加速度 (m/s²)',
+                                    '  加速度 (m/s²)',
                                     style: TextStyle(
                                       fontSize: 18,
                                       fontWeight: FontWeight.bold,
@@ -1085,7 +1084,7 @@ class _BleScannerScreenState extends State<BleScannerScreen> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               const Text(
-                                '🌀 陀螺儀 (deg/s)',
+                                '  陀螺儀 (deg/s)',
                                 style: TextStyle(
                                   fontSize: 18,
                                   fontWeight: FontWeight.bold,
@@ -1175,7 +1174,7 @@ class _BleScannerScreenState extends State<BleScannerScreen> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               const Text(
-                                '🎤 麥克風 (音量/峰值)',
+                                '  麥克風 (音量/峰值)',
                                 style: TextStyle(
                                   fontSize: 18,
                                   fontWeight: FontWeight.bold,
@@ -1256,7 +1255,7 @@ class _BleScannerScreenState extends State<BleScannerScreen> {
                           child: Column(
                             children: [
                               const Text(
-                                '📊 即時統計',
+                                '  即時統計',
                                 style: TextStyle(
                                   fontSize: 16,
                                   fontWeight: FontWeight.bold,
@@ -1329,12 +1328,13 @@ class _BleScannerScreenState extends State<BleScannerScreen> {
   }
 }
 
-// 新增：預測結果頁面
+// 修改：預測結果頁面
 class PredictionPage extends StatelessWidget {
   final List<Map<String, dynamic>> predictionHistory;
   final bool isPredictionEnabled;
   final bool isCollectingData;
   final int bufferSize;
+  final Map<String, dynamic>? latestPredictionResult;
   final Function(bool) onTogglePrediction;
 
   const PredictionPage({
@@ -1343,6 +1343,7 @@ class PredictionPage extends StatelessWidget {
     required this.isPredictionEnabled,
     required this.isCollectingData,
     required this.bufferSize,
+    required this.latestPredictionResult,
     required this.onTogglePrediction,
   });
 
@@ -1351,11 +1352,34 @@ class PredictionPage extends StatelessWidget {
     return '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}:${dt.second.toString().padLeft(2, '0')}.${dt.millisecond.toString().padLeft(3, '0')}';
   }
 
+  // 獲取置信度對應的顏色 - 統一使用藍色
+  Color getConfidenceColor(double confidence) {
+    return Colors.blue;
+  }
+
+  // 獲取擊球類型對應的圖標
+  IconData getStrokeIcon(String strokeType) {
+    switch (strokeType.toLowerCase()) {
+      case 'smash':
+        return Icons.sports_tennis;
+      case 'drive':
+        return Icons.arrow_forward;
+      case 'clear':
+        return Icons.arrow_upward;
+      case 'drop':
+        return Icons.arrow_downward;
+      case 'toss':
+        return Icons.sports_volleyball;
+      default:
+        return Icons.help_outline;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('🎯 預測結果'),
+        title: const Text('預測結果'),
         backgroundColor: Colors.purple.shade100,
       ),
       body: Column(
@@ -1445,7 +1469,7 @@ class PredictionPage extends StatelessWidget {
                           child: Text(
                             isCollectingData
                                 ? '正在收集數據: $bufferSize/30'
-                                : '等待觸發 (閾值: |ax|+|ay|+|az| > 4.0)',
+                                : '等待觸發 (閾值: |ax|>3 OR |ay|>3 OR |az|>3)',
                             style: const TextStyle(fontSize: 14),
                           ),
                         ),
@@ -1456,6 +1480,179 @@ class PredictionPage extends StatelessWidget {
               ],
             ),
           ),
+
+          // 最新預測結果卡片 - 固定顯示
+          Container(
+            margin: const EdgeInsets.symmetric(horizontal: 16),
+            child: Card(
+              elevation: 6,
+              color: Colors.purple.shade50,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+                side: BorderSide(color: Colors.purple.shade300, width: 2),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        const SizedBox(width: 8),
+                        Text(
+                          '最新預測結果',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.purple.shade700,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.purple.shade200),
+                      ),
+                      child: latestPredictionResult != null
+                          ? Column(
+                              children: [
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(
+                                      getStrokeIcon(latestPredictionResult!['stroke_type'] ?? ''),
+                                      size: 32,
+                                      color: Colors.purple.shade700,
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Text(
+                                      latestPredictionResult!['stroke_type'] ?? 'Unknown',
+                                      style: TextStyle(
+                                        fontSize: 24,
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.purple.shade700,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 12),
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+                                  children: [
+                                    Column(
+                                      children: [
+                                        Text(
+                                          '置信度',
+                                          style: TextStyle(
+                                            fontSize: 14,
+                                            color: Colors.grey.shade600,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 4),
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 12,
+                                            vertical: 6,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color: getConfidenceColor(
+                                              latestPredictionResult!['confidence'] ?? 0.0,
+                                            ),
+                                            borderRadius: BorderRadius.circular(20),
+                                          ),
+                                          child: Text(
+                                            '${((latestPredictionResult!['confidence'] ?? 0.0) * 100).toStringAsFixed(1)}%',
+                                            style: const TextStyle(
+                                              color: Colors.white,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    Column(
+                                      children: [
+                                        Text(
+                                          '時間',
+                                          style: TextStyle(
+                                            fontSize: 14,
+                                            color: Colors.grey.shade600,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          formatTimestamp(latestPredictionResult!['timestamp'] ?? 0),
+                                          style: const TextStyle(
+                                            fontSize: 16,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            )
+                          : Column(
+                              children: [
+                                Icon(
+                                  Icons.pending,
+                                  size: 48,
+                                  color: Colors.grey.shade400,
+                                ),
+                                const SizedBox(height: 12),
+                                Text(
+                                  '等待預測結果',
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    color: Colors.grey.shade600,
+                                  ),
+                                ),
+                                Text(
+                                  isPredictionEnabled ? '請觸發預測動作' : '請先啟用預測功能',
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    color: Colors.grey.shade500,
+                                  ),
+                                ),
+                              ],
+                            ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+
+          // 歷史記錄標題
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.history,
+                  color: Colors.grey.shade600,
+                  size: 20,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  '原始JSON歷史記錄 (最多20筆)',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.grey.shade700,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 8),
 
           // 預測歷史記錄
           Expanded(
@@ -1494,15 +1691,6 @@ class PredictionPage extends StatelessWidget {
                       itemCount: predictionHistory.length,
                       itemBuilder: (context, index) {
                         final prediction = predictionHistory[index];
-                        final strokeType =
-                            prediction['stroke_type'] ?? 'Unknown';
-                        final confidence =
-                            (prediction['confidence'] ?? 0.0) as double;
-                        final timestamp = prediction['timestamp'] ?? 0;
-                        final allProbabilities =
-                            prediction['all_probabilities']
-                                as Map<String, dynamic>? ??
-                            {};
 
                         return Card(
                           margin: const EdgeInsets.only(bottom: 12),
