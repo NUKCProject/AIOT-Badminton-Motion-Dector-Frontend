@@ -112,6 +112,9 @@ class _BleScannerScreenState extends State<BleScannerScreen> {
   bool isPredictingSpeed = false;
   List<Map<String, dynamic>> currentPredictionData = [];
 
+  // 新增：預測結果頁面的 GlobalKey，用於觸發頁面更新
+  GlobalKey<_PredictionPageState>? predictionPageKey;
+
   @override
   void initState() {
     super.initState();
@@ -305,6 +308,9 @@ class _BleScannerScreenState extends State<BleScannerScreen> {
         remainingDataToCollect = 20;
         print('準備收集觸發後數據：${remainingDataToCollect}筆');
       });
+
+      // 新增：通知預測頁面狀態變更
+      _notifyPredictionPageStateChange();
     }
   }
 
@@ -327,6 +333,9 @@ class _BleScannerScreenState extends State<BleScannerScreen> {
         '收集觸發後數據，剩餘：${remainingDataToCollect}筆，已收集：${predictionBuffer.length}筆',
       );
 
+      // 新增：通知預測頁面狀態變更
+      _notifyPredictionPageStateChange();
+
       // 收集完成30筆數據
       if (remainingDataToCollect <= 0 &&
           predictionBuffer.length >= predictionDataCount) {
@@ -336,6 +345,9 @@ class _BleScannerScreenState extends State<BleScannerScreen> {
           isCollectingPredictionData = false;
           remainingDataToCollect = 0;
         });
+        
+        // 新增：通知預測頁面狀態變更
+        _notifyPredictionPageStateChange();
       }
     }
   }
@@ -389,6 +401,9 @@ class _BleScannerScreenState extends State<BleScannerScreen> {
           }
         });
 
+        // 新增：通知預測頁面更新結果
+        _notifyPredictionPageNewResult();
+
         // 新增：檢查是否為 smash 並自動進行球速預測
         if (responseData['stroke_type']?.toString().toLowerCase() == 'smash') {
           print('檢測到 smash，自動進行球速預測...');
@@ -414,6 +429,9 @@ class _BleScannerScreenState extends State<BleScannerScreen> {
     setState(() {
       isPredictingSpeed = true;
     });
+
+    // 新增：通知預測頁面球速預測開始
+    _notifyPredictionPageStateChange();
 
     try {
       final requestData = {
@@ -457,6 +475,9 @@ class _BleScannerScreenState extends State<BleScannerScreen> {
           }
         });
 
+        // 新增：通知預測頁面球速結果更新
+        _notifyPredictionPageNewResult();
+
         showSnackbar(
           '球速預測完成: ${speedData['predicted_speed']?.toStringAsFixed(1)} km/h',
           true,
@@ -472,7 +493,28 @@ class _BleScannerScreenState extends State<BleScannerScreen> {
       setState(() {
         isPredictingSpeed = false;
       });
+      
+      // 新增：通知預測頁面球速預測結束
+      _notifyPredictionPageStateChange();
     }
+  }
+
+  // 新增：通知預測頁面狀態變更的方法
+  void _notifyPredictionPageStateChange() {
+    predictionPageKey?.currentState?.updatePredictionState(
+      isPredictionEnabled: isPredictionEnabled,
+      isCollectingData: isCollectingPredictionData,
+      bufferSize: predictionBuffer.length,
+      isPredictingSpeed: isPredictingSpeed,
+    );
+  }
+
+  // 新增：通知預測頁面新結果的方法
+  void _notifyPredictionPageNewResult() {
+    predictionPageKey?.currentState?.updatePredictionResult(
+      latestResult: latestPredictionResult,
+      history: predictionHistory,
+    );
   }
 
   Future<void> subscribeToIMUData() async {
@@ -686,11 +728,15 @@ class _BleScannerScreenState extends State<BleScannerScreen> {
             IconButton(
               icon: const Icon(Icons.psychology),
               onPressed: () {
+                // 新增：創建預測頁面的 GlobalKey
+                predictionPageKey = GlobalKey<_PredictionPageState>();
+                
                 Navigator.push(
                   context,
                   MaterialPageRoute(
                     builder:
                         (context) => PredictionPage(
+                          key: predictionPageKey,
                           predictionHistory: predictionHistory,
                           isPredictionEnabled: isPredictionEnabled,
                           isCollectingData: isCollectingPredictionData,
@@ -708,10 +754,16 @@ class _BleScannerScreenState extends State<BleScannerScreen> {
                                 currentPredictionData.clear();
                               }
                             });
+                            
+                            // 新增：通知預測頁面狀態變更
+                            _notifyPredictionPageStateChange();
                           },
                         ),
                   ),
-                );
+                ).then((_) {
+                  // 新增：頁面關閉時清除 key
+                  predictionPageKey = null;
+                });
               },
               tooltip: '預測結果',
             ),
@@ -1366,8 +1418,8 @@ class _BleScannerScreenState extends State<BleScannerScreen> {
   }
 }
 
-// 修改：預測結果頁面，新增球速顯示功能
-class PredictionPage extends StatelessWidget {
+// 修改：預測結果頁面改為 StatefulWidget，新增自動更新功能
+class PredictionPage extends StatefulWidget {
   final List<Map<String, dynamic>> predictionHistory;
   final bool isPredictionEnabled;
   final bool isCollectingData;
@@ -1386,6 +1438,61 @@ class PredictionPage extends StatelessWidget {
     required this.isPredictingSpeed,
     required this.onTogglePrediction,
   });
+
+  @override
+  State<PredictionPage> createState() => _PredictionPageState();
+}
+
+class _PredictionPageState extends State<PredictionPage> {
+  // 本地狀態變數，用於即時更新
+  late bool _isPredictionEnabled;
+  late bool _isCollectingData;
+  late int _bufferSize;
+  late bool _isPredictingSpeed;
+  late List<Map<String, dynamic>> _predictionHistory;
+  Map<String, dynamic>? _latestPredictionResult;
+
+  @override
+  void initState() {
+    super.initState();
+    // 初始化本地狀態
+    _isPredictionEnabled = widget.isPredictionEnabled;
+    _isCollectingData = widget.isCollectingData;
+    _bufferSize = widget.bufferSize;
+    _isPredictingSpeed = widget.isPredictingSpeed;
+    _predictionHistory = List.from(widget.predictionHistory);
+    _latestPredictionResult = widget.latestPredictionResult;
+  }
+
+  // 新增：更新預測狀態的方法
+  void updatePredictionState({
+    required bool isPredictionEnabled,
+    required bool isCollectingData,
+    required int bufferSize,
+    required bool isPredictingSpeed,
+  }) {
+    if (mounted) {
+      setState(() {
+        _isPredictionEnabled = isPredictionEnabled;
+        _isCollectingData = isCollectingData;
+        _bufferSize = bufferSize;
+        _isPredictingSpeed = isPredictingSpeed;
+      });
+    }
+  }
+
+  // 新增：更新預測結果的方法
+  void updatePredictionResult({
+    Map<String, dynamic>? latestResult,
+    required List<Map<String, dynamic>> history,
+  }) {
+    if (mounted) {
+      setState(() {
+        _latestPredictionResult = latestResult;
+        _predictionHistory = List.from(history);
+      });
+    }
+  }
 
   String formatTimestamp(int timestamp) {
     DateTime dt = DateTime.fromMillisecondsSinceEpoch(timestamp);
@@ -1430,13 +1537,13 @@ class PredictionPage extends StatelessWidget {
             margin: const EdgeInsets.all(16),
             decoration: BoxDecoration(
               color:
-                  isPredictionEnabled
+                  _isPredictionEnabled
                       ? Colors.purple.shade50
                       : Colors.grey.shade50,
               borderRadius: BorderRadius.circular(12),
               border: Border.all(
                 color:
-                    isPredictionEnabled
+                    _isPredictionEnabled
                         ? Colors.purple.shade300
                         : Colors.grey.shade300,
               ),
@@ -1448,7 +1555,7 @@ class PredictionPage extends StatelessWidget {
                     Icon(
                       Icons.psychology,
                       color:
-                          isPredictionEnabled
+                          _isPredictionEnabled
                               ? Colors.purple.shade700
                               : Colors.grey.shade600,
                       size: 24,
@@ -1464,13 +1571,13 @@ class PredictionPage extends StatelessWidget {
                               fontSize: 18,
                               fontWeight: FontWeight.bold,
                               color:
-                                  isPredictionEnabled
+                                  _isPredictionEnabled
                                       ? Colors.purple.shade700
                                       : Colors.grey.shade700,
                             ),
                           ),
                           Text(
-                            isPredictionEnabled ? '已啟用' : '已關閉',
+                            _isPredictionEnabled ? '已啟用' : '已關閉',
                             style: TextStyle(
                               fontSize: 14,
                               color: Colors.grey.shade600,
@@ -1480,13 +1587,23 @@ class PredictionPage extends StatelessWidget {
                       ),
                     ),
                     Switch(
-                      value: isPredictionEnabled,
-                      onChanged: onTogglePrediction,
+                      value: _isPredictionEnabled,
+                      onChanged: (value) {
+                        widget.onTogglePrediction(value);
+                        setState(() {
+                          _isPredictionEnabled = value;
+                          if (!value) {
+                            _isCollectingData = false;
+                            _isPredictingSpeed = false;
+                            _bufferSize = 0;
+                          }
+                        });
+                      },
                       activeColor: Colors.purple,
                     ),
                   ],
                 ),
-                if (isPredictionEnabled) ...[
+                if (_isPredictionEnabled) ...[
                   const SizedBox(height: 12),
                   Container(
                     padding: const EdgeInsets.all(12),
@@ -1498,15 +1615,15 @@ class PredictionPage extends StatelessWidget {
                     child: Row(
                       children: [
                         Icon(
-                          isCollectingData
+                          _isCollectingData
                               ? Icons.fiber_manual_record
-                              : isPredictingSpeed
+                              : _isPredictingSpeed
                               ? Icons.speed
                               : Icons.sensors,
                           color:
-                              isCollectingData
+                              _isCollectingData
                                   ? Colors.red
-                                  : isPredictingSpeed
+                                  : _isPredictingSpeed
                                   ? Colors.orange
                                   : Colors.green,
                           size: 16,
@@ -1514,9 +1631,9 @@ class PredictionPage extends StatelessWidget {
                         const SizedBox(width: 8),
                         Expanded(
                           child: Text(
-                            isCollectingData
-                                ? '正在收集數據: $bufferSize/30'
-                                : isPredictingSpeed
+                            _isCollectingData
+                                ? '正在收集數據: $_bufferSize/30'
+                                : _isPredictingSpeed
                                 ? '正在預測球速...'
                                 : '等待觸發 (閾值: |ax|>3 OR |ay|>3 OR |az|>3)',
                             style: const TextStyle(fontSize: 14),
@@ -1568,7 +1685,7 @@ class PredictionPage extends StatelessWidget {
                         border: Border.all(color: Colors.purple.shade200),
                       ),
                       child:
-                          latestPredictionResult != null
+                          _latestPredictionResult != null
                               ? Column(
                                 children: [
                                   Row(
@@ -1576,7 +1693,7 @@ class PredictionPage extends StatelessWidget {
                                     children: [
                                       Icon(
                                         getStrokeIcon(
-                                          latestPredictionResult!['stroke_type'] ??
+                                          _latestPredictionResult!['stroke_type'] ??
                                               '',
                                         ),
                                         size: 32,
@@ -1584,7 +1701,7 @@ class PredictionPage extends StatelessWidget {
                                       ),
                                       const SizedBox(width: 12),
                                       Text(
-                                        latestPredictionResult!['stroke_type'] ??
+                                        _latestPredictionResult!['stroke_type'] ??
                                             'Unknown',
                                         style: TextStyle(
                                           fontSize: 24,
@@ -1597,7 +1714,7 @@ class PredictionPage extends StatelessWidget {
                                   const SizedBox(height: 12),
 
                                   // 新增：球速顯示區域
-                                  if (latestPredictionResult!.containsKey(
+                                  if (_latestPredictionResult!.containsKey(
                                     'predicted_speed',
                                   )) ...[
                                     Container(
@@ -1631,7 +1748,7 @@ class PredictionPage extends StatelessWidget {
                                                 ),
                                               ),
                                               Text(
-                                                '${latestPredictionResult!['predicted_speed']?.toStringAsFixed(1) ?? 'N/A'} km/h',
+                                                '${_latestPredictionResult!['predicted_speed']?.toStringAsFixed(1) ?? 'N/A'} km/h',
                                                 style: TextStyle(
                                                   fontSize: 20,
                                                   fontWeight: FontWeight.bold,
@@ -1666,14 +1783,14 @@ class PredictionPage extends StatelessWidget {
                                             ),
                                             decoration: BoxDecoration(
                                               color: getConfidenceColor(
-                                                latestPredictionResult!['confidence'] ??
+                                                _latestPredictionResult!['confidence'] ??
                                                     0.0,
                                               ),
                                               borderRadius:
                                                   BorderRadius.circular(20),
                                             ),
                                             child: Text(
-                                              '${((latestPredictionResult!['confidence'] ?? 0.0) * 100).toStringAsFixed(1)}%',
+                                              '${((_latestPredictionResult!['confidence'] ?? 0.0) * 100).toStringAsFixed(1)}%',
                                               style: const TextStyle(
                                                 color: Colors.white,
                                                 fontWeight: FontWeight.bold,
@@ -1694,7 +1811,7 @@ class PredictionPage extends StatelessWidget {
                                           const SizedBox(height: 4),
                                           Text(
                                             formatTimestamp(
-                                              latestPredictionResult!['timestamp'] ??
+                                              _latestPredictionResult!['timestamp'] ??
                                                   0,
                                             ),
                                             style: const TextStyle(
@@ -1724,7 +1841,7 @@ class PredictionPage extends StatelessWidget {
                                     ),
                                   ),
                                   Text(
-                                    isPredictionEnabled
+                                    _isPredictionEnabled
                                         ? '請觸發預測動作'
                                         : '請先啟用預測功能',
                                     style: TextStyle(
@@ -1765,7 +1882,7 @@ class PredictionPage extends StatelessWidget {
           // 預測歷史記錄
           Expanded(
             child:
-                predictionHistory.isEmpty
+                _predictionHistory.isEmpty
                     ? Center(
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
@@ -1785,7 +1902,7 @@ class PredictionPage extends StatelessWidget {
                           ),
                           const SizedBox(height: 8),
                           Text(
-                            isPredictionEnabled ? '等待觸發預測...' : '請先啟用預測功能',
+                            _isPredictionEnabled ? '等待觸發預測...' : '請先啟用預測功能',
                             style: TextStyle(
                               fontSize: 14,
                               color: Colors.grey.shade500,
@@ -1796,9 +1913,9 @@ class PredictionPage extends StatelessWidget {
                     )
                     : ListView.builder(
                       padding: const EdgeInsets.symmetric(horizontal: 16),
-                      itemCount: predictionHistory.length,
+                      itemCount: _predictionHistory.length,
                       itemBuilder: (context, index) {
-                        final prediction = predictionHistory[index];
+                        final prediction = _predictionHistory[index];
 
                         return Card(
                           margin: const EdgeInsets.only(bottom: 12),
