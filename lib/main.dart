@@ -108,6 +108,10 @@ class _BleScannerScreenState extends State<BleScannerScreen> {
   // 新增：預測結果顯示相關變數
   Map<String, dynamic>? latestPredictionResult;
 
+  // 新增：球速預測相關變數
+  bool isPredictingSpeed = false;
+  List<Map<String, dynamic>> currentPredictionData = [];
+
   @override
   void initState() {
     super.initState();
@@ -181,6 +185,9 @@ class _BleScannerScreenState extends State<BleScannerScreen> {
           isCollectingPredictionData = false;
           remainingDataToCollect = 0;
           latestPredictionResult = null;
+          // 重置球速預測相關狀態
+          isPredictingSpeed = false;
+          currentPredictionData.clear();
         });
         startScan();
       }
@@ -359,6 +366,9 @@ class _BleScannerScreenState extends State<BleScannerScreen> {
 
       print('發送預測請求，數據點數: ${predictionBuffer.length}');
 
+      // 保存當前預測數據用於後續球速預測
+      currentPredictionData = List.from(predictionBuffer);
+
       final response = await http.post(
         Uri.parse('http://210.61.41.223:5000/predict'),
         headers: {'Content-Type': 'application/json'},
@@ -379,6 +389,11 @@ class _BleScannerScreenState extends State<BleScannerScreen> {
           }
         });
 
+        // 新增：檢查是否為 smash 並自動進行球速預測
+        if (responseData['stroke_type']?.toString().toLowerCase() == 'smash') {
+          print('檢測到 smash，自動進行球速預測...');
+          await sendSpeedPredictionRequest();
+        }
       } else {
         print('預測請求失敗: ${response.statusCode}');
         showSnackbar('預測請求失敗: ${response.statusCode}', false);
@@ -386,6 +401,77 @@ class _BleScannerScreenState extends State<BleScannerScreen> {
     } catch (e) {
       print('預測請求錯誤: $e');
       showSnackbar('預測請求錯誤: $e', false);
+    }
+  }
+
+  // 新增：發送球速預測請求
+  Future<void> sendSpeedPredictionRequest() async {
+    if (currentPredictionData.isEmpty) {
+      print('沒有可用的感測器數據進行球速預測');
+      return;
+    }
+
+    setState(() {
+      isPredictingSpeed = true;
+    });
+
+    try {
+      final requestData = {
+        "sensor_data":
+            currentPredictionData
+                .map(
+                  (data) => {
+                    "ts": data["ts"],
+                    "ax": data["ax"],
+                    "ay": data["ay"],
+                    "az": data["az"],
+                    "gx": data["gx"],
+                    "gy": data["gy"],
+                    "gz": data["gz"],
+                    "mic_level": data["mic_level"],
+                    "mic_peak": data["mic_peak"],
+                  },
+                )
+                .toList(),
+      };
+
+      print('發送球速預測請求，數據點數: ${currentPredictionData.length}');
+
+      final response = await http.post(
+        Uri.parse('https://aiot-badminton-speed-api.onrender.com/predict_speed'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode(requestData),
+      );
+
+      if (response.statusCode == 200) {
+        final speedData = jsonDecode(response.body);
+        print('收到球速預測結果: $speedData');
+
+        // 將球速結果合併到最新預測結果中
+        setState(() {
+          if (latestPredictionResult != null) {
+            latestPredictionResult!['predicted_speed'] =
+                speedData['predicted_speed'];
+            latestPredictionResult!['confidence_info'] =
+                speedData['confidence_info'];
+          }
+        });
+
+        showSnackbar(
+          '球速預測完成: ${speedData['predicted_speed']?.toStringAsFixed(1)} km/h',
+          true,
+        );
+      } else {
+        print('球速預測請求失敗: ${response.statusCode}');
+        showSnackbar('球速預測請求失敗: ${response.statusCode}', false);
+      }
+    } catch (e) {
+      print('球速預測請求錯誤: $e');
+      showSnackbar('球速預測請求錯誤: $e', false);
+    } finally {
+      setState(() {
+        isPredictingSpeed = false;
+      });
     }
   }
 
@@ -610,6 +696,7 @@ class _BleScannerScreenState extends State<BleScannerScreen> {
                           isCollectingData: isCollectingPredictionData,
                           bufferSize: predictionBuffer.length,
                           latestPredictionResult: latestPredictionResult,
+                          isPredictingSpeed: isPredictingSpeed,
                           onTogglePrediction: (value) {
                             setState(() {
                               isPredictionEnabled = value;
@@ -617,6 +704,8 @@ class _BleScannerScreenState extends State<BleScannerScreen> {
                                 predictionBuffer.clear();
                                 isCollectingPredictionData = false;
                                 latestPredictionResult = null;
+                                isPredictingSpeed = false;
+                                currentPredictionData.clear();
                               }
                             });
                           },
@@ -795,6 +884,8 @@ class _BleScannerScreenState extends State<BleScannerScreen> {
                                             Text(
                                               isCollectingPredictionData
                                                   ? '正在收集數據'
+                                                  : isPredictingSpeed
+                                                  ? '正在預測球速'
                                                   : '等待觸發',
                                               style: TextStyle(
                                                 fontSize: 12,
@@ -812,6 +903,8 @@ class _BleScannerScreenState extends State<BleScannerScreen> {
                                           if (!value) {
                                             predictionBuffer.clear();
                                             isCollectingPredictionData = false;
+                                            isPredictingSpeed = false;
+                                            currentPredictionData.clear();
                                           }
                                         });
                                       },
@@ -1273,13 +1366,14 @@ class _BleScannerScreenState extends State<BleScannerScreen> {
   }
 }
 
-// 修改：預測結果頁面
+// 修改：預測結果頁面，新增球速顯示功能
 class PredictionPage extends StatelessWidget {
   final List<Map<String, dynamic>> predictionHistory;
   final bool isPredictionEnabled;
   final bool isCollectingData;
   final int bufferSize;
   final Map<String, dynamic>? latestPredictionResult;
+  final bool isPredictingSpeed;
   final Function(bool) onTogglePrediction;
 
   const PredictionPage({
@@ -1289,6 +1383,7 @@ class PredictionPage extends StatelessWidget {
     required this.isCollectingData,
     required this.bufferSize,
     required this.latestPredictionResult,
+    required this.isPredictingSpeed,
     required this.onTogglePrediction,
   });
 
@@ -1405,8 +1500,15 @@ class PredictionPage extends StatelessWidget {
                         Icon(
                           isCollectingData
                               ? Icons.fiber_manual_record
+                              : isPredictingSpeed
+                              ? Icons.speed
                               : Icons.sensors,
-                          color: isCollectingData ? Colors.red : Colors.green,
+                          color:
+                              isCollectingData
+                                  ? Colors.red
+                                  : isPredictingSpeed
+                                  ? Colors.orange
+                                  : Colors.green,
                           size: 16,
                         ),
                         const SizedBox(width: 8),
@@ -1414,6 +1516,8 @@ class PredictionPage extends StatelessWidget {
                           child: Text(
                             isCollectingData
                                 ? '正在收集數據: $bufferSize/30'
+                                : isPredictingSpeed
+                                ? '正在預測球速...'
                                 : '等待觸發 (閾值: |ax|>3 OR |ay|>3 OR |az|>3)',
                             style: const TextStyle(fontSize: 14),
                           ),
@@ -1426,7 +1530,7 @@ class PredictionPage extends StatelessWidget {
             ),
           ),
 
-          // 最新預測結果卡片 - 固定顯示
+          // 最新預測結果卡片 - 固定顯示，新增球速顯示
           Container(
             margin: const EdgeInsets.symmetric(horizontal: 16),
             child: Card(
@@ -1463,110 +1567,173 @@ class PredictionPage extends StatelessWidget {
                         borderRadius: BorderRadius.circular(8),
                         border: Border.all(color: Colors.purple.shade200),
                       ),
-                      child: latestPredictionResult != null
-                          ? Column(
-                              children: [
-                                Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Icon(
-                                      getStrokeIcon(latestPredictionResult!['stroke_type'] ?? ''),
-                                      size: 32,
-                                      color: Colors.purple.shade700,
-                                    ),
-                                    const SizedBox(width: 12),
-                                    Text(
-                                      latestPredictionResult!['stroke_type'] ?? 'Unknown',
-                                      style: TextStyle(
-                                        fontSize: 24,
-                                        fontWeight: FontWeight.bold,
+                      child:
+                          latestPredictionResult != null
+                              ? Column(
+                                children: [
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Icon(
+                                        getStrokeIcon(
+                                          latestPredictionResult!['stroke_type'] ??
+                                              '',
+                                        ),
+                                        size: 32,
                                         color: Colors.purple.shade700,
+                                      ),
+                                      const SizedBox(width: 12),
+                                      Text(
+                                        latestPredictionResult!['stroke_type'] ??
+                                            'Unknown',
+                                        style: TextStyle(
+                                          fontSize: 24,
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.purple.shade700,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 12),
+
+                                  // 新增：球速顯示區域
+                                  if (latestPredictionResult!.containsKey(
+                                    'predicted_speed',
+                                  )) ...[
+                                    Container(
+                                      padding: const EdgeInsets.all(12),
+                                      margin: const EdgeInsets.only(bottom: 12),
+                                      decoration: BoxDecoration(
+                                        color: Colors.orange.shade50,
+                                        borderRadius: BorderRadius.circular(8),
+                                        border: Border.all(
+                                          color: Colors.orange.shade300,
+                                        ),
+                                      ),
+                                      child: Row(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.center,
+                                        children: [
+                                          Icon(
+                                            Icons.speed,
+                                            color: Colors.orange.shade700,
+                                            size: 24,
+                                          ),
+                                          const SizedBox(width: 12),
+                                          Column(
+                                            children: [
+                                              Text(
+                                                '球速',
+                                                style: TextStyle(
+                                                  fontSize: 14,
+                                                  color: Colors.orange.shade700,
+                                                  fontWeight: FontWeight.bold,
+                                                ),
+                                              ),
+                                              Text(
+                                                '${latestPredictionResult!['predicted_speed']?.toStringAsFixed(1) ?? 'N/A'} km/h',
+                                                style: TextStyle(
+                                                  fontSize: 20,
+                                                  fontWeight: FontWeight.bold,
+                                                  color: Colors.orange.shade800,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ],
                                       ),
                                     ),
                                   ],
-                                ),
-                                const SizedBox(height: 12),
-                                Row(
-                                  mainAxisAlignment: MainAxisAlignment.spaceAround,
-                                  children: [
-                                    Column(
-                                      children: [
-                                        Text(
-                                          '置信度',
-                                          style: TextStyle(
-                                            fontSize: 14,
-                                            color: Colors.grey.shade600,
-                                          ),
-                                        ),
-                                        const SizedBox(height: 4),
-                                        Container(
-                                          padding: const EdgeInsets.symmetric(
-                                            horizontal: 12,
-                                            vertical: 6,
-                                          ),
-                                          decoration: BoxDecoration(
-                                            color: getConfidenceColor(
-                                              latestPredictionResult!['confidence'] ?? 0.0,
+
+                                  Row(
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.spaceAround,
+                                    children: [
+                                      Column(
+                                        children: [
+                                          Text(
+                                            '置信度',
+                                            style: TextStyle(
+                                              fontSize: 14,
+                                              color: Colors.grey.shade600,
                                             ),
-                                            borderRadius: BorderRadius.circular(20),
                                           ),
-                                          child: Text(
-                                            '${((latestPredictionResult!['confidence'] ?? 0.0) * 100).toStringAsFixed(1)}%',
+                                          const SizedBox(height: 4),
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 12,
+                                              vertical: 6,
+                                            ),
+                                            decoration: BoxDecoration(
+                                              color: getConfidenceColor(
+                                                latestPredictionResult!['confidence'] ??
+                                                    0.0,
+                                              ),
+                                              borderRadius:
+                                                  BorderRadius.circular(20),
+                                            ),
+                                            child: Text(
+                                              '${((latestPredictionResult!['confidence'] ?? 0.0) * 100).toStringAsFixed(1)}%',
+                                              style: const TextStyle(
+                                                color: Colors.white,
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      Column(
+                                        children: [
+                                          Text(
+                                            '時間',
+                                            style: TextStyle(
+                                              fontSize: 14,
+                                              color: Colors.grey.shade600,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 4),
+                                          Text(
+                                            formatTimestamp(
+                                              latestPredictionResult!['timestamp'] ??
+                                                  0,
+                                            ),
                                             style: const TextStyle(
-                                              color: Colors.white,
+                                              fontSize: 16,
                                               fontWeight: FontWeight.bold,
                                             ),
                                           ),
-                                        ),
-                                      ],
-                                    ),
-                                    Column(
-                                      children: [
-                                        Text(
-                                          '時間',
-                                          style: TextStyle(
-                                            fontSize: 14,
-                                            color: Colors.grey.shade600,
-                                          ),
-                                        ),
-                                        const SizedBox(height: 4),
-                                        Text(
-                                          formatTimestamp(latestPredictionResult!['timestamp'] ?? 0),
-                                          style: const TextStyle(
-                                            fontSize: 16,
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ],
-                                ),
-                              ],
-                            )
-                          : Column(
-                              children: [
-                                Icon(
-                                  Icons.pending,
-                                  size: 48,
-                                  color: Colors.grey.shade400,
-                                ),
-                                const SizedBox(height: 12),
-                                Text(
-                                  '等待預測結果',
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    color: Colors.grey.shade600,
+                                        ],
+                                      ),
+                                    ],
                                   ),
-                                ),
-                                Text(
-                                  isPredictionEnabled ? '請觸發預測動作' : '請先啟用預測功能',
-                                  style: TextStyle(
-                                    fontSize: 14,
-                                    color: Colors.grey.shade500,
+                                ],
+                              )
+                              : Column(
+                                children: [
+                                  Icon(
+                                    Icons.pending,
+                                    size: 48,
+                                    color: Colors.grey.shade400,
                                   ),
-                                ),
-                              ],
-                            ),
+                                  const SizedBox(height: 12),
+                                  Text(
+                                    '等待預測結果',
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      color: Colors.grey.shade600,
+                                    ),
+                                  ),
+                                  Text(
+                                    isPredictionEnabled
+                                        ? '請觸發預測動作'
+                                        : '請先啟用預測功能',
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      color: Colors.grey.shade500,
+                                    ),
+                                  ),
+                                ],
+                              ),
                     ),
                   ],
                 ),
@@ -1580,11 +1747,7 @@ class PredictionPage extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: Row(
               children: [
-                Icon(
-                  Icons.history,
-                  color: Colors.grey.shade600,
-                  size: 20,
-                ),
+                Icon(Icons.history, color: Colors.grey.shade600, size: 20),
                 const SizedBox(width: 8),
                 Text(
                   '原始JSON歷史記錄 (最多20筆)',
