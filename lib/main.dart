@@ -352,7 +352,7 @@ class _BleScannerScreenState extends State<BleScannerScreen> {
     }
   }
 
-  // 修改：發送預測請求
+  // 修改：發送預測請求 - 適配新的API回應格式
   Future<void> sendPredictionRequest() async {
     if (predictionBuffer.isEmpty) return;
 
@@ -391,23 +391,39 @@ class _BleScannerScreenState extends State<BleScannerScreen> {
         final responseData = jsonDecode(response.body);
         print('收到預測結果: $responseData');
 
-        // 設置最新預測結果和保存到歷史記錄
-        setState(() {
-          latestPredictionResult = responseData;
-          predictionHistory.insert(0, responseData);
-          // 只保留最近20筆記錄
-          if (predictionHistory.length > 20) {
-            predictionHistory.removeLast();
+        // 適配新格式：從 prediction 對象中提取數據
+        final prediction = responseData['prediction'];
+        if (prediction != null) {
+          // 轉換為舊格式結構以保持兼容性
+          final adaptedResult = {
+            'label': prediction['label'], // stroke_type -> label
+            'probability': prediction['probability'], // confidence -> probability
+            'timestamp': DateTime.now().millisecondsSinceEpoch, // 使用當前時間
+            'all_probabilities': prediction['all_probabilities'], // 保持原有格式
+            'class_id': prediction['class_id'], // 新增 class_id
+          };
+
+          // 設置最新預測結果和保存到歷史記錄
+          setState(() {
+            latestPredictionResult = adaptedResult;
+            predictionHistory.insert(0, adaptedResult);
+            // 只保留最近20筆記錄
+            if (predictionHistory.length > 20) {
+              predictionHistory.removeLast();
+            }
+          });
+
+          // 新增：通知預測頁面更新結果
+          _notifyPredictionPageNewResult();
+
+          // 新增：檢查是否為 smash 並自動進行球速預測
+          if (adaptedResult['label']?.toString().toLowerCase() == 'smash') {
+            print('檢測到 smash，自動進行球速預測...');
+            await sendSpeedPredictionRequest();
           }
-        });
-
-        // 新增：通知預測頁面更新結果
-        _notifyPredictionPageNewResult();
-
-        // 新增：檢查是否為 smash 並自動進行球速預測
-        if (responseData['stroke_type']?.toString().toLowerCase() == 'smash') {
-          print('檢測到 smash，自動進行球速預測...');
-          await sendSpeedPredictionRequest();
+        } else {
+          print('預測回應格式錯誤：找不到 prediction 對象');
+          showSnackbar('預測回應格式錯誤', false);
         }
       } else {
         print('預測請求失敗: ${response.statusCode}');
@@ -1504,7 +1520,7 @@ class _PredictionPageState extends State<PredictionPage> {
     return Colors.blue;
   }
 
-  // 獲取擊球類型對應的圖標
+  // 獲取擊球類型對應的圖標 - 修改：適配新的 label 欄位
   IconData getStrokeIcon(String strokeType) {
     switch (strokeType.toLowerCase()) {
       case 'smash':
@@ -1647,7 +1663,7 @@ class _PredictionPageState extends State<PredictionPage> {
             ),
           ),
 
-          // 最新預測結果卡片 - 固定顯示，新增球速顯示
+          // 最新預測結果卡片 - 修改：適配新的API格式
           Container(
             margin: const EdgeInsets.symmetric(horizontal: 16),
             child: Card(
@@ -1693,16 +1709,14 @@ class _PredictionPageState extends State<PredictionPage> {
                                     children: [
                                       Icon(
                                         getStrokeIcon(
-                                          _latestPredictionResult!['stroke_type'] ??
-                                              '',
+                                          _latestPredictionResult!['label'] ?? '', // 修改：stroke_type -> label
                                         ),
                                         size: 32,
                                         color: Colors.purple.shade700,
                                       ),
                                       const SizedBox(width: 12),
                                       Text(
-                                        _latestPredictionResult!['stroke_type'] ??
-                                            'Unknown',
+                                        _latestPredictionResult!['label'] ?? 'Unknown', // 修改：stroke_type -> label
                                         style: TextStyle(
                                           fontSize: 24,
                                           fontWeight: FontWeight.bold,
@@ -1783,14 +1797,13 @@ class _PredictionPageState extends State<PredictionPage> {
                                             ),
                                             decoration: BoxDecoration(
                                               color: getConfidenceColor(
-                                                _latestPredictionResult!['confidence'] ??
-                                                    0.0,
+                                                _latestPredictionResult!['probability'] ?? 0.0, // 修改：confidence -> probability
                                               ),
                                               borderRadius:
                                                   BorderRadius.circular(20),
                                             ),
                                             child: Text(
-                                              '${((_latestPredictionResult!['confidence'] ?? 0.0) * 100).toStringAsFixed(1)}%',
+                                              '${((_latestPredictionResult!['probability'] ?? 0.0) * 100).toStringAsFixed(1)}%', // 修改：confidence -> probability
                                               style: const TextStyle(
                                                 color: Colors.white,
                                                 fontWeight: FontWeight.bold,
