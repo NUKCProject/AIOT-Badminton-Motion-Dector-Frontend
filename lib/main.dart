@@ -352,7 +352,7 @@ class _BleScannerScreenState extends State<BleScannerScreen> {
     }
   }
 
-  // 修改：發送預測請求
+  // 修改：發送預測請求 - 更新為新的 API 回應格式
   Future<void> sendPredictionRequest() async {
     if (predictionBuffer.isEmpty) return;
 
@@ -382,7 +382,7 @@ class _BleScannerScreenState extends State<BleScannerScreen> {
       currentPredictionData = List.from(predictionBuffer);
 
       final response = await http.post(
-        Uri.parse('http://210.61.41.223:5000/predict'),
+        Uri.parse('https://badminton-461016.de.r.appspot.com/predict'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode(requestData),
       );
@@ -391,10 +391,41 @@ class _BleScannerScreenState extends State<BleScannerScreen> {
         final responseData = jsonDecode(response.body);
         print('收到預測結果: $responseData');
 
+        // 修改：處理新的 API 回應格式，確保類型安全
+        // 使用回應時間作為時間戳，並將 prediction 映射到 stroke_type
+        String predictionValue = 'unknown';
+        double confidenceValue = 0.0;
+        
+        // 安全地提取 prediction 值
+        if (responseData['prediction'] != null) {
+          predictionValue = responseData['prediction'].toString();
+        }
+        
+        // 安全地提取 confidence 值
+        if (responseData['confidence'] != null) {
+          if (responseData['confidence'] is num) {
+            confidenceValue = responseData['confidence'].toDouble();
+          } else if (responseData['confidence'] is String) {
+            try {
+              confidenceValue = double.parse(responseData['confidence']);
+            } catch (e) {
+              print('無法解析 confidence 值: ${responseData['confidence']}');
+              confidenceValue = 0.0;
+            }
+          }
+        }
+
+        final processedResult = {
+          'stroke_type': predictionValue, // 新格式的 prediction 映射到 stroke_type
+          'confidence': confidenceValue, // 保持 confidence 不變
+          'timestamp': DateTime.now().millisecondsSinceEpoch, // 使用回應時間
+          'all_probabilities': <String, dynamic>{}, // 新格式沒有提供，設為空
+        };
+
         // 設置最新預測結果和保存到歷史記錄
         setState(() {
-          latestPredictionResult = responseData;
-          predictionHistory.insert(0, responseData);
+          latestPredictionResult = processedResult;
+          predictionHistory.insert(0, processedResult);
           // 只保留最近20筆記錄
           if (predictionHistory.length > 20) {
             predictionHistory.removeLast();
@@ -404,8 +435,8 @@ class _BleScannerScreenState extends State<BleScannerScreen> {
         // 新增：通知預測頁面更新結果
         _notifyPredictionPageNewResult();
 
-        // 新增：檢查是否為 smash 並自動進行球速預測
-        if (responseData['stroke_type']?.toString().toLowerCase() == 'smash') {
+        // 修改：檢查是否為 smash 並自動進行球速預測
+        if (predictionValue.toLowerCase() == 'smash') {
           print('檢測到 smash，自動進行球速預測...');
           await sendSpeedPredictionRequest();
         }
@@ -1505,7 +1536,9 @@ class _PredictionPageState extends State<PredictionPage> {
   }
 
   // 獲取擊球類型對應的圖標
-  IconData getStrokeIcon(String strokeType) {
+  IconData getStrokeIcon(String? strokeType) {
+    if (strokeType == null) return Icons.help_outline;
+    
     switch (strokeType.toLowerCase()) {
       case 'smash':
         return Icons.sports_tennis;
@@ -1517,6 +1550,8 @@ class _PredictionPageState extends State<PredictionPage> {
         return Icons.arrow_downward;
       case 'toss':
         return Icons.sports_volleyball;
+      case 'other':
+        return Icons.help_outline;
       default:
         return Icons.help_outline;
     }
@@ -1693,15 +1728,14 @@ class _PredictionPageState extends State<PredictionPage> {
                                     children: [
                                       Icon(
                                         getStrokeIcon(
-                                          _latestPredictionResult!['stroke_type'] ??
-                                              '',
+                                          _latestPredictionResult!['stroke_type']?.toString(),
                                         ),
                                         size: 32,
                                         color: Colors.purple.shade700,
                                       ),
                                       const SizedBox(width: 12),
                                       Text(
-                                        _latestPredictionResult!['stroke_type'] ??
+                                        _latestPredictionResult!['stroke_type']?.toString() ??
                                             'Unknown',
                                         style: TextStyle(
                                           fontSize: 24,
@@ -1783,14 +1817,13 @@ class _PredictionPageState extends State<PredictionPage> {
                                             ),
                                             decoration: BoxDecoration(
                                               color: getConfidenceColor(
-                                                _latestPredictionResult!['confidence'] ??
-                                                    0.0,
+                                                ((_latestPredictionResult!['confidence'] as num?) ?? 0.0).toDouble(),
                                               ),
                                               borderRadius:
                                                   BorderRadius.circular(20),
                                             ),
                                             child: Text(
-                                              '${((_latestPredictionResult!['confidence'] ?? 0.0) * 100).toStringAsFixed(1)}%',
+                                              '${(((_latestPredictionResult!['confidence'] as num?) ?? 0.0) * 100).toStringAsFixed(1)}%',
                                               style: const TextStyle(
                                                 color: Colors.white,
                                                 fontWeight: FontWeight.bold,
@@ -1811,7 +1844,7 @@ class _PredictionPageState extends State<PredictionPage> {
                                           const SizedBox(height: 4),
                                           Text(
                                             formatTimestamp(
-                                              _latestPredictionResult!['timestamp'] ??
+                                              (_latestPredictionResult!['timestamp'] as int?) ??
                                                   0,
                                             ),
                                             style: const TextStyle(
